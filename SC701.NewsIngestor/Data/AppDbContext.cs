@@ -1,11 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using SC701.NewsIngestor.Models;
 
 namespace SC701.NewsIngestor.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options) { }
 
-        // Los DbSet los agregamos en la próxima HU (Sources/SourceItems)
+        public DbSet<Source> Sources { get; set; }
+        public DbSet<SourceItem> SourceItems { get; set; }
     }
 }
