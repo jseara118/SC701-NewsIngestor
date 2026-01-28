@@ -1,0 +1,31 @@
+﻿@model SC701_NewsIngestor.Models.ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="container text-center py-5">
+    <div class="card-custom" style="max-width: 700px; margin: 0 auto;">
+        <div class="card-body p-5">
+            <div style="font-size: 5rem; margin-bottom: 1rem;">⚠️</div>
+            <h1 class="text-danger mb-3">¡Oops! Algo salió mal</h1>
+            <p class="lead mb-4">
+                Ocurrió un error al procesar tu solicitud. Por favor, intenta nuevamente.
+            </p>
+
+            @if (Model.ShowRequestId)
+            {
+                <div class="alert alert-info-custom">
+                    <strong>Request ID:</strong> <code>@Model.RequestId</code>
+                </div>
+            }
+
+            <hr class="divider" />
+
+            <div class="mt-4">
+                <a asp-controller="Home" asp-action="Index" class="btn btn-primary-custom">
+                    🏠 Volver al Inicio
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

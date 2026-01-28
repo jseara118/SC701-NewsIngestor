@@ -1,8 +1,93 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<!-- Hero Section -->
+<div class="hero-section fade-in">
+    <div class="container text-center">
+        <h1 class="hero-title">SC701-NewsIngestor</h1>
+        <p class="hero-subtitle">
+            Plataforma universitaria de agregación de noticias que recopila, normaliza y presenta
+            contenido de múltiples fuentes externas en un solo lugar.
+        </p>
+        <div class="mt-4">
+            <a asp-controller="Sources" asp-action="Index" class="btn btn-primary-custom btn-lg">
+                🚀 Administrar Fuentes
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Features Cards -->
+<div class="container">
+    <div class="row g-4">
+        <!-- Card 1: Múltiples Fuentes -->
+        <div class="col-lg-4 col-md-6 fade-in">
+            <div class="feature-card">
+                <div class="feature-icon primary">
+                    📡
+                </div>
+                <h3 class="feature-title">Múltiples Fuentes</h3>
+                <p class="feature-description">
+                    Conecta y administra diferentes fuentes de noticias (RSS, APIs, web scraping)
+                    desde una interfaz centralizada y fácil de usar.
+                </p>
+                <div class="mt-3">
+                    <span class="badge badge-primary-custom">RSS</span>
+                    <span class="badge badge-primary-custom">API</span>
+                    <span class="badge badge-primary-custom">Scraping</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Persistencia -->
+        <div class="col-lg-4 col-md-6 fade-in" style="animation-delay: 0.1s;">
+            <div class="feature-card">
+                <div class="feature-icon success">
+                    💾
+                </div>
+                <h3 class="feature-title">Persistencia Robusta</h3>
+                <p class="feature-description">
+                    Almacena todo el contenido en SQL Server usando Entity Framework Core
+                    para acceso rápido, consultas eficientes y data integrity.
+                </p>
+                <div class="mt-3">
+                    <span class="badge badge-success-custom">SQL Server</span>
+                    <span class="badge badge-success-custom">EF Core</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Interoperabilidad -->
+        <div class="col-lg-4 col-md-6 fade-in" style="animation-delay: 0.2s;">
+            <div class="feature-card">
+                <div class="feature-icon warning">
+                    🔗
+                </div>
+                <h3 class="feature-title">Interoperabilidad</h3>
+                <p class="feature-description">
+                    Arquitectura modular con componentes reutilizables que permite
+                    integrar nuevas fuentes de forma sencilla y escalable.
+                </p>
+                <div class="mt-3">
+                    <span class="badge badge-warning-custom">ASP.NET Core</span>
+                    <span class="badge badge-warning-custom">MVC</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call to Action -->
+    <div class="text-center mt-5">
+        <hr class="divider" />
+        <h3 class="mb-4">¿Listo para comenzar?</h3>
+        <div class="d-flex gap-3 justify-content-center flex-wrap">
+            <a asp-controller="Sources" asp-action="Create" class="btn btn-primary-custom">
+                ➕ Crear Primera Fuente
+            </a>
+            <a asp-controller="Items" asp-action="Index" class="btn btn-secondary-custom">
+                📋 Ver Items Agregados
+            </a>
+        </div>
+    </div>
 </div>

@@ -1,0 +1,130 @@
+﻿@model SC701.NewsIngestor.Models.SourceItem
+
+@{
+    ViewData["Title"] = $"Item #{Model.Id}";
+}
+
+<div class="page-header">
+    <h1 class="page-title">
+        🔍 Detalle del Item #@Model.Id
+    </h1>
+    <a asp-action="Index" class="btn btn-secondary-custom">
+        ← Volver al Listado
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <!-- Información General -->
+        <div class="card-custom mb-4">
+            <div class="card-header">
+                📊 Información General
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label-custom">ID del Item:</label>
+                        <div class="p-3" style="background: var(--gray-100); border-radius: var(--radius);">
+                            <strong style="color: var(--primary); font-size: 1.25rem;">#@Model.Id</strong>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label-custom">ID de Fuente:</label>
+                        <div class="p-3" style="background: var(--gray-100); border-radius: var(--radius);">
+                            <span class="badge badge-success-custom" style="font-size: 1rem;">@Model.SourceId</span>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label-custom">Fuente de Origen:</label>
+                        <div class="p-3" style="background: var(--gray-100); border-radius: var(--radius);">
+                            @if (Model.Source != null)
+                            {
+                                <div class="d-flex align-items-center gap-3">
+                                    <div>
+                                        <strong style="color: var(--gray-900); font-size: 1.1rem;">
+                                            @Model.Source.Name
+                                        </strong>
+                                        <br />
+                                        <small style="color: var(--gray-600);">
+                                            <a href="@Model.Source.Url" target="_blank" class="text-decoration-none">
+                                                🔗 @Model.Source.Url
+                                            </a>
+                                        </small>
+                                    </div>
+                                    <div class="ms-auto">
+                                        <span class="badge badge-primary-custom">@Model.Source.ComponentType</span>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted">❌ Fuente no encontrada</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label-custom">Fecha de Creación:</label>
+                        <div class="p-3" style="background: var(--gray-100); border-radius: var(--radius);">
+                            <div class="d-flex align-items-center gap-3">
+                                <div>
+                                    <strong style="color: var(--gray-900);">
+                                        📅 @Model.CreatedAt.ToString("dddd, dd MMMM yyyy")
+                                    </strong>
+                                    <br />
+                                    <small style="color: var(--gray-600);">
+                                        🕒 @Model.CreatedAt.ToString("HH:mm:ss")
+                                    </small>
+                                </div>
+                                <div class="ms-auto">
+                                    <span class="badge badge-warning-custom">
+                                        @Model.CreatedAt.ToString("o")
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Datos JSON -->
+        <div class="card-custom card-success mb-4">
+            <div class="card-header">
+                📄 Datos JSON (Raw Data)
+            </div>
+            <div class="card-body">
+                <div style="background: #1E293B; border-radius: var(--radius); overflow: hidden;">
+                    <pre class="p-4 mb-0" style="color: #E2E8F0; max-height: 600px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6;"><code>@Model.Json</code></pre>
+                </div>
+                <div class="mt-3 text-end">
+                    <button class="btn btn-secondary-custom btn-sm" onclick="copyToClipboard()">
+                        📋 Copiar JSON
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="d-flex gap-3 justify-content-center">
+            <a asp-action="Index" class="btn btn-secondary-custom">
+                ← Volver al Listado
+            </a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function copyToClipboard() {
+            const jsonText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Json));
+            navigator.clipboard.writeText(jsonText).then(function() {
+                alert('✅ JSON copiado al portapapeles');
+            }, function(err) {
+                alert('❌ Error al copiar: ' + err);
+            });
+        }
+    </script>
+}
