@@ -1,4 +1,4 @@
-namespace SC701_NewsIngestor.Models
+namespace SC701.NewsIngestor.Models
 {
     public class ErrorViewModel
     {
