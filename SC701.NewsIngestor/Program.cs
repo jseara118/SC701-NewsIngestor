@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using SC701.NewsIngestor.Data;
+using SC701.Data;
+using SC701.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 

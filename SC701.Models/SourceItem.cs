@@ -1,9 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-
 //comment: This class represents an item fetched from a news source, including its JSON data and metadata.
-namespace SC701.NewsIngestor.Models
+namespace SC701.Models
 {
     public class SourceItem
     {

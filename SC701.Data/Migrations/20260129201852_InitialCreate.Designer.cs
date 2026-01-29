@@ -5,15 +5,15 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using SC701.NewsIngestor.Data;
+using SC701.Data;
 
 #nullable disable
 
-namespace SC701.NewsIngestor.Migrations
+namespace SC701.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260128214952_AddSourcesAndSourceItems")]
-    partial class AddSourcesAndSourceItems
+    [Migration("20260129201852_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,7 +25,7 @@ namespace SC701.NewsIngestor.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("SC701.NewsIngestor.Models.Source", b =>
+            modelBuilder.Entity("SC701.Models.Source", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -60,7 +60,7 @@ namespace SC701.NewsIngestor.Migrations
                     b.ToTable("Sources");
                 });
 
-            modelBuilder.Entity("SC701.NewsIngestor.Models.SourceItem", b =>
+            modelBuilder.Entity("SC701.Models.SourceItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -85,15 +85,20 @@ namespace SC701.NewsIngestor.Migrations
                     b.ToTable("SourceItems");
                 });
 
-            modelBuilder.Entity("SC701.NewsIngestor.Models.SourceItem", b =>
+            modelBuilder.Entity("SC701.Models.SourceItem", b =>
                 {
-                    b.HasOne("SC701.NewsIngestor.Models.Source", "Source")
-                        .WithMany()
+                    b.HasOne("SC701.Models.Source", "Source")
+                        .WithMany("SourceItems")
                         .HasForeignKey("SourceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Source");
+                });
+
+            modelBuilder.Entity("SC701.Models.Source", b =>
+                {
+                    b.Navigation("SourceItems");
                 });
 #pragma warning restore 612, 618
         }

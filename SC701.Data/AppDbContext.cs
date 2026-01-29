@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using SC701.NewsIngestor.Models;
+using SC701.Models;
 
-namespace SC701.NewsIngestor.Data
+namespace SC701.Data
 {
     public class AppDbContext : DbContext
     {
