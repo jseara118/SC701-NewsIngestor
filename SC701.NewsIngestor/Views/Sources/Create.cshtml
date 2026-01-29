@@ -1,0 +1,136 @@
+﻿@model SC701.NewsIngestor.Models.Source
+
+@{
+    ViewData["Title"] = "Crear Fuente";
+}
+
+<div class="page-header">
+    <h1 class="page-title">
+        ➕ Crear Nueva Fuente
+    </h1>
+    <a asp-action="Index" class="btn btn-secondary-custom">
+        ← Volver al Listado
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card-custom">
+            <div class="card-header">
+                📝 Formulario de Fuente
+            </div>
+            <div class="card-body">
+                <form asp-action="Create">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="mb-4">
+                        <label asp-for="Name" class="form-label-custom"></label>
+                        <input asp-for="Name" class="form-control form-control-custom"
+                               placeholder="Ej: BBC News RSS" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Url" class="form-label-custom"></label>
+                        <input asp-for="Url" class="form-control form-control-custom"
+                               placeholder="https://ejemplo.com/rss" />
+                        <span asp-validation-for="Url" class="text-danger"></span>
+                        <div class="form-text">
+                            🔗 Debe ser una URL válida (incluye https://)
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="ComponentType" class="form-label-custom"></label>
+                        <select asp-for="ComponentType" class="form-select form-select-custom">
+                            <option value="">-- Seleccione un tipo --</option>
+                            <option value="RSS">📰 RSS</option>
+                            <option value="API">🔌 API</option>
+                            <option value="WebScraper">🕷️ Web Scraper</option>
+                            <option value="JSON">📋 JSON Feed</option>
+                        </select>
+                        <span asp-validation-for="ComponentType" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Description" class="form-label-custom"></label>
+                        <textarea asp-for="Description" class="form-control form-control-custom" rows="3"
+                                  placeholder="Descripción opcional de la fuente..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input asp-for="RequiresSecret" class="form-check-input" type="checkbox"
+                                   style="cursor: pointer;" />
+                            <label asp-for="RequiresSecret" class="form-check-label form-label-custom"
+                                   style="cursor: pointer;">
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            🔐 Marca si esta fuente requiere una API key o credenciales
+                        </div>
+                    </div>
+
+                    <hr class="divider" />
+
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="btn btn-primary-custom">
+                            💾 Guardar Fuente
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary-custom">
+                            ❌ Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card-custom">
+            <div class="card-header">
+                💡 Ayuda
+            </div>
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Tipos de Componente:</h6>
+
+                <div class="mb-3">
+                    <span class="badge badge-primary-custom mb-2">📰 RSS</span>
+                    <p class="small mb-0">Fuentes RSS/Atom tradicionales para blogs y sitios de noticias.</p>
+                </div>
+
+                <div class="mb-3">
+                    <span class="badge badge-primary-custom mb-2">🔌 API</span>
+                    <p class="small mb-0">APIs REST de proveedores de noticias como NewsAPI, Guardian, etc.</p>
+                </div>
+
+                <div class="mb-3">
+                    <span class="badge badge-primary-custom mb-2">🕷️ Web Scraper</span>
+                    <p class="small mb-0">Extracción directa desde sitios web mediante scraping.</p>
+                </div>
+
+                <div class="mb-0">
+                    <span class="badge badge-primary-custom mb-2">📋 JSON Feed</span>
+                    <p class="small mb-0">Feeds JSON personalizados o de servicios específicos.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-custom mt-3" style="background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%);">
+            <div class="card-body">
+                <h6 class="fw-bold mb-2">📌 Consejo</h6>
+                <p class="small mb-0">
+                    Asegúrate de probar la URL de la fuente antes de guardarla para verificar
+                    que esté activa y accesible.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
