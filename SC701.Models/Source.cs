@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
+
 //comment: This class represents a news source in the application, including its properties and validation attributes.
-namespace SC701.NewsIngestor.Models
+namespace SC701.Models
 {
     public class Source
     {
