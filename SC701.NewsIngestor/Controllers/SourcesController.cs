@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SC701.NewsIngestor.Models;
-using SC701.NewsIngestor.Data;
+using SC701.Models;
+using SC701.Data;
 
 //comment: This controller manages the CRUD operations for Source entities in the application.
 
-namespace SC701_NewsIngestor.Controllers
+namespace SC701.NewsIngestor.Controllers
 {
     public class SourcesController : Controller
     {

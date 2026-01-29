@@ -1,6 +1,4 @@
-﻿
-
-@model SC701.NewsIngestor.Models.SourceItem
+﻿@model SC701.Models.SourceItem
 
 @{
     ViewData["Title"] = $"Item #{Model.Id}";
@@ -121,7 +119,7 @@
 @section Scripts {
     <script>
         function copyToClipboard() {
-            const jsonText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Json));
+            const jsonText = `@Model.Json?.Replace("`", "\\`")`;
             navigator.clipboard.writeText(jsonText).then(function() {
                 alert('✅ JSON copiado al portapapeles');
             }, function(err) {

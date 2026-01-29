@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using SC701.Models;
+
 //comment: This is a simple HomeController for an ASP.NET Core MVC application.
 
-namespace SC701_NewsIngestor.Controllers
+namespace SC701.NewsIngestor.Controllers
 {
     public class HomeController : Controller
     {

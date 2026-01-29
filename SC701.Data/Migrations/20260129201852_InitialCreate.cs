@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace SC701.NewsIngestor.Migrations
+namespace SC701.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class AddSourcesAndSourceItems : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
