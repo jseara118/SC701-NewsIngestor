@@ -8,9 +8,14 @@
     <h1 class="page-title">
         📡 Fuentes de Noticias
     </h1>
-    <a asp-action="Create" class="btn btn-primary-custom">
-        ➕ Crear Nueva Fuente
-    </a>
+    <div>
+        <span class="badge badge-primary-custom" style="font-size: 1rem; padding: 0.6rem 1.2rem;">
+            Total: @Model.Count()
+        </span>
+        <a asp-action="Create" class="btn btn-primary-custom ms-3">
+            ➕ Crear Nueva Fuente
+        </a>
+    </div>
 </div>
 
 @if (TempData["SuccessMessage"] != null)
@@ -23,9 +28,20 @@
 
 @if (!Model.Any())
 {
-    <div class="alert alert-info-custom">
-        <h5 class="mb-2"><strong>📭 No hay fuentes registradas</strong></h5>
-        <p class="mb-0">Haz clic en "Crear Nueva Fuente" para comenzar a agregar fuentes de noticias.</p>
+    <div class="text-center py-5">
+        <div class="card-custom" style="max-width: 600px; margin: 0 auto;">
+            <div class="card-body p-5">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
+                <h3 class="mb-3">No hay fuentes registradas aún</h3>
+                <p class="text-muted mb-4">
+                    Comienza agregando tu primera fuente de noticias. Puedes configurar fuentes RSS, APIs,
+                    web scrapers o feeds JSON para comenzar a ingerir contenido.
+                </p>
+                <a asp-action="Create" class="btn btn-primary-custom">
+                    ➕ Crear Primera Fuente
+                </a>
+            </div>
+        </div>
     </div>
 }
 else
@@ -36,44 +52,66 @@ else
                 <tr>
                     <th style="width: 5%;">ID</th>
                     <th style="width: 20%;">Nombre</th>
-                    <th style="width: 30%;">URL</th>
-                    <th style="width: 15%;">Tipo</th>
-                    <th style="width: 15%;">Secret</th>
-                    <th style="width: 15%;">Descripción</th>
+                    <th style="width: 25%;">URL</th>
+                    <th style="width: 12%;">Tipo</th>
+                    <th style="width: 10%;">Secret</th>
+                    <th style="width: 18%;">Descripción</th>
+                    <th style="width: 10%;">Items</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var item in Model)
                 {
                     <tr class="hover-lift">
-                        <td><strong>#@item.Id</strong></td>
                         <td>
-                            <strong style="color: var(--primary);">@item.Name</strong>
+                            <strong style="color: var(--primary);">#@item.Id</strong>
+                        </td>
+                        <td>
+                            <strong style="color: var(--gray-900);">@item.Name</strong>
                         </td>
                         <td>
                             <a href="@item.Url" target="_blank" class="text-decoration-none"
-                               style="color: var(--gray-600); font-size: 0.9rem;">
-                                @(item.Url.Length > 40 ? item.Url.Substring(0, 40) + "..." : item.Url)
+                               style="color: var(--gray-600); font-size: 0.9rem;"
+                               title="@item.Url">
+                                @(item.Url.Length > 35 ? item.Url.Substring(0, 35) + "..." : item.Url)
                                 <span style="font-size: 0.8rem;">🔗</span>
                             </a>
                         </td>
                         <td>
-                            <span class="badge badge-primary-custom">@item.ComponentType</span>
+                            <span class="badge badge-primary-custom" style="font-size: 0.75rem;">
+                                @item.ComponentType
+                            </span>
                         </td>
                         <td>
                             @if (item.RequiresSecret)
                             {
-                                <span class="badge badge-warning-custom">🔐 Sí</span>
+                                <span class="badge badge-warning-custom" style="font-size: 0.75rem;">🔐 Sí</span>
                             }
                             else
                             {
-                                <span class="badge badge-success-custom">✅ No</span>
+                                <span class="badge badge-success-custom" style="font-size: 0.75rem;">✅ No</span>
                             }
                         </td>
                         <td>
                             <small style="color: var(--gray-600);">
-                                @(item.Description ?? "-")
+                                @(item.Description != null && item.Description.Length > 50 
+                                    ? item.Description.Substring(0, 50) + "..." 
+                                    : (item.Description ?? "-"))
                             </small>
+                        </td>
+                        <td>
+                            @if (item.SourceItems != null && item.SourceItems.Any())
+                            {
+                                <span class="badge badge-success-custom" style="font-size: 0.75rem;">
+                                    @item.SourceItems.Count()
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge" style="background-color: var(--gray-300); color: var(--gray-600); font-size: 0.75rem;">
+                                    0
+                                </span>
+                            }
                         </td>
                     </tr>
                 }
@@ -83,7 +121,7 @@ else
 
     <div class="mt-4 d-flex justify-content-between align-items-center">
         <p class="text-muted mb-0">
-            Total de fuentes registradas: <strong style="color: var(--primary);">@Model.Count()</strong>
+            Mostrando <strong style="color: var(--primary);">@Model.Count()</strong> fuente(s) registrada(s)
         </p>
         <a asp-action="Create" class="btn btn-secondary-custom">
             ➕ Agregar Otra Fuente

@@ -19,7 +19,10 @@ namespace SC701.NewsIngestor.Controllers
         // GET: Sources
         public async Task<IActionResult> Index()
         {
-            var sources = await _context.Sources.ToListAsync();
+            var sources = await _context.Sources
+                .Include(s => s.SourceItems)
+                .OrderBy(s => s.Name)
+                .ToListAsync();
             return View(sources);
         }
 
