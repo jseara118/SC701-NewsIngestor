@@ -26,6 +26,15 @@
     </div>
 }
 
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <strong>❌ Error:</strong> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+
 @if (!Model.Any())
 {
     <div class="text-center py-5">
@@ -57,6 +66,11 @@ else
                     <th style="width: 10%;">Secret</th>
                     <th style="width: 18%;">Descripción</th>
                     <th style="width: 10%;">Items</th>
+
+                    <!-- comentario -->
+                    <th style="width: 10%;">Acciones</th>
+                    <!-- comentario -->
+
                 </tr>
             </thead>
             <tbody>
@@ -113,6 +127,26 @@ else
                                 </span>
                             }
                         </td>
+
+                        <!-- comentario -->
+                        <td>
+                            <form asp-action="AddItem" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="sourceId" value="@item.Id" />
+
+                            <button type="submit"
+                                    class="btn btn-sm btn-primary-custom"
+                                    onclick="return confirmarAccion(@(item.SourceItems != null && item.SourceItems.Any() ? "true" : "false"));">
+                                @(item.SourceItems != null && item.SourceItems.Any()
+                                                            ? "✔ Ya agregado"
+                                                            : "➕ Agregar Item")
+                        </button>
+
+                            </form>
+                        </td>
+                        <!-- comentario -->
+
+
                     </tr>
                 }
             </tbody>
@@ -128,3 +162,13 @@ else
         </a>
     </div>
 }
+
+
+<script>
+    function confirmarAccion(yaExiste) {
+        if (yaExiste) {
+            return confirm("Este item ya fue agregado. ¿Deseas intentar guardarlo nuevamente?");
+        }
+        return true;
+    }
+</script>
