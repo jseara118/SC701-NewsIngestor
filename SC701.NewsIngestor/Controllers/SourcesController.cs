@@ -19,7 +19,10 @@ namespace SC701.NewsIngestor.Controllers
         // GET: Sources
         public async Task<IActionResult> Index()
         {
-            var sources = await _context.Sources.ToListAsync();
+            var sources = await _context.Sources
+                .Include(s => s.SourceItems)
+                .OrderBy(s => s.Name)
+                .ToListAsync();
             return View(sources);
         }
 
@@ -43,5 +46,64 @@ namespace SC701.NewsIngestor.Controllers
             }
             return View(source);
         }
+
+
+        ///////////////////////////////////////////////////////////
+        ///
+
+        // POST: Sources/AddItem
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddItem(int sourceId)
+        {
+            // 1. Verificar que la fuente exista
+            var source = await _context.Sources
+                .FirstOrDefaultAsync(s => s.Id == sourceId);
+
+            if (source == null)
+            {
+                TempData["ErrorMessage"] = "La fuente seleccionada no existe.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 2. Definir el JSON (por ahora usamos la URL como contenido base)
+            string jsonData = source.Url;
+
+            // 3. Verificar si ya existe un item con la misma información
+            bool existeItem = await _context.SourceItems.AnyAsync(i =>
+                i.SourceId == sourceId &&
+                i.Json == jsonData
+            );
+
+            if (existeItem)
+            {
+                TempData["ErrorMessage"] =
+                    $"Ya existe un item registrado para la fuente '{source.Name}'. No se permiten duplicados.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 4. Crear el SourceItem
+            var newItem = new SourceItem
+            {
+                SourceId = source.Id,
+                Json = jsonData,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.SourceItems.Add(newItem);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] =
+                $"El item de la fuente '{source.Name}' fue agregado correctamente.";
+
+            return RedirectToAction(nameof(Index));
+        }
+
+
+        //////////////////////////////////////////////////////////
+
+
+
+
     }
 }
