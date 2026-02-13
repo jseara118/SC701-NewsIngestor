@@ -45,5 +45,12 @@ namespace SC701.NewsIngestor.Controllers
 
             return View(sourceItem);
         }
+
+        // GET: Items/Upload
+        // HU-26: Vista para subir archivos JSON
+        public IActionResult Upload()
+        {
+            return View();
+        }
     }
 }
