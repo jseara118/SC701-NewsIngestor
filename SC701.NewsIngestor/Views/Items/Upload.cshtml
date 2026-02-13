@@ -1,0 +1,223 @@
+@{
+    ViewData["Title"] = "Importar Noticia (JSON)";
+}
+
+<div class="page-header">
+    <h1 class="page-title">
+        📤 Importar Noticia desde JSON
+    </h1>
+    <a asp-action="Index" class="btn btn-secondary-custom">
+        ← Volver al Listado
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Información sobre el formato -->
+        <div class="card-custom mb-4" style="border-left: 4px solid var(--primary);">
+            <div class="card-body">
+                <h5 class="mb-3">ℹ️ Formato de Archivo Requerido</h5>
+                <p class="mb-2">
+                    El archivo JSON debe cumplir con el formato estándar acordado:
+                    <code>edu.univ.ingest.v1</code>
+                </p>
+                <ul class="mb-3">
+                    <li>Extensión: <code>.json</code></li>
+                    <li>Tamaño máximo: <strong>10 MB</strong></li>
+                    <li>Schema Version: <code>"edu.univ.ingest.v1"</code></li>
+                    <li>Debe incluir secciones: <code>source</code>, <code>normalized</code></li>
+                </ul>
+                <details>
+                    <summary style="cursor: pointer; color: var(--primary); font-weight: 500;">
+                        📝 Ver ejemplo de formato válido
+                    </summary>
+                    <pre class="mt-3 p-3" style="background: #1E293B; color: #E2E8F0; border-radius: var(--radius); font-size: 0.85rem; overflow-x: auto;"><code>{
+  "schemaVersion": "edu.univ.ingest.v1",
+  "exportedAt": "2026-02-13T15:00:00Z",
+  "source": {
+    "name": "New York Times",
+    "type": "api",
+    "url": "https://api.nytimes.com/...",
+    "requiresSecret": true
+  },
+  "normalized": {
+    "title": "Título de la noticia",
+    "content": "Contenido completo...",
+    "publishedAt": "2026-02-13T08:00:00Z"
+  },
+  "raw": {
+    "format": "json"
+  }
+}</code></pre>
+                </details>
+            </div>
+        </div>
+
+        <!-- Formulario de Upload -->
+        <div class="card-custom">
+            <div class="card-header">
+                📁 Seleccionar Archivo JSON
+            </div>
+            <div class="card-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label for="fileInput" class="form-label-custom">
+                            Archivo JSON:
+                        </label>
+                        <input type="file" 
+                               class="form-control" 
+                               id="fileInput" 
+                               name="file" 
+                               accept=".json"
+                               required>
+                        <small class="text-muted mt-2 d-block">
+                            Solo archivos .json (máximo 10 MB)
+                        </small>
+                    </div>
+
+                    <!-- Área de resultado -->
+                    <div id="resultArea" class="mb-3" style="display: none;">
+                        <!-- Se llenará dinámicamente con JavaScript -->
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a asp-action="Index" class="btn btn-secondary-custom">
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary-custom" id="uploadBtn">
+                            📤 Importar Noticia
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Mensajes de ayuda -->
+        <div class="mt-4">
+            <div class="card-custom" style="background: var(--gray-50); border: 1px dashed var(--gray-300);">
+                <div class="card-body">
+                    <h6 class="mb-2">💡 ¿Qué pasa al importar?</h6>
+                    <ol class="mb-0" style="color: var(--gray-700);">
+                        <li>El sistema valida que el JSON cumpla con el formato estándar</li>
+                        <li>Si la fuente (<code>source.url</code>) no existe, se crea automáticamente</li>
+                        <li>Se guarda el item completo en la base de datos</li>
+                        <li>Podrás verlo en el listado de items</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('fileInput');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const resultArea = document.getElementById('resultArea');
+            
+            // Validar que se haya seleccionado un archivo
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showResult('error', '❌ Por favor selecciona un archivo');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            // Validar extensión
+            if (!file.name.endsWith('.json')) {
+                showResult('error', '❌ El archivo debe tener extensión .json');
+                return;
+            }
+            
+            // Validar tamaño (10 MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showResult('error', '❌ El archivo excede el tamaño máximo de 10 MB');
+                return;
+            }
+            
+            // Preparar FormData
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Deshabilitar botón y mostrar loading
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '⏳ Importando...';
+            
+            try {
+                const response = await fetch('/api/NewsInterop/import', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Éxito
+                    showResult('success', `
+                        <strong>✅ Noticia importada exitosamente</strong>
+                        <div class="mt-2">
+                            <div><strong>ID:</strong> ${result.id}</div>
+                            <div><strong>Fuente:</strong> ${result.sourceName}</div>
+                            <div><strong>Título:</strong> ${result.title}</div>
+                        </div>
+                        <div class="mt-3">
+                            <a href="/Items/Details/${result.id}" class="btn btn-primary-custom btn-sm">
+                                🔍 Ver Item Importado
+                            </a>
+                            <a href="/Items/Index" class="btn btn-secondary-custom btn-sm">
+                                📋 Ver Todos los Items
+                            </a>
+                        </div>
+                    `);
+                    
+                    // Limpiar el formulario
+                    fileInput.value = '';
+                    
+                } else {
+                    // Error del servidor
+                    let errorMessage = '❌ Error al importar el archivo';
+                    
+                    if (result.message) {
+                        errorMessage = `❌ ${result.message}`;
+                    }
+                    
+                    if (result.errors && Array.isArray(result.errors)) {
+                        errorMessage += '<ul class="mt-2 mb-0">';
+                        result.errors.forEach(err => {
+                            errorMessage += `<li>${err}</li>`;
+                        });
+                        errorMessage += '</ul>';
+                    }
+                    
+                    showResult('error', errorMessage);
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showResult('error', '❌ Error de conexión. Por favor intenta nuevamente.');
+            } finally {
+                // Re-habilitar botón
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '📤 Importar Noticia';
+            }
+        });
+        
+        function showResult(type, message) {
+            const resultArea = document.getElementById('resultArea');
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+            
+            resultArea.innerHTML = `
+                <div class="alert ${alertClass} mb-0">
+                    ${message}
+                </div>
+            `;
+            resultArea.style.display = 'block';
+            
+            // Scroll al resultado
+            resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    </script>
+}
