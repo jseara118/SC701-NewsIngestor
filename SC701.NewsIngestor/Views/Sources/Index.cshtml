@@ -1,0 +1,174 @@
+﻿@model IEnumerable<SC701.Models.Source>
+
+@{
+    ViewData["Title"] = "Fuentes de Noticias";
+}
+
+<div class="page-header">
+    <h1 class="page-title">
+        📡 Fuentes de Noticias
+    </h1>
+    <div>
+        <span class="badge badge-primary-custom" style="font-size: 1rem; padding: 0.6rem 1.2rem;">
+            Total: @Model.Count()
+        </span>
+        <a asp-action="Create" class="btn btn-primary-custom ms-3">
+            ➕ Crear Nueva Fuente
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success-custom alert-dismissible fade show" role="alert">
+        <strong>✅ ¡Éxito!</strong> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <strong>❌ Error:</strong> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+
+@if (!Model.Any())
+{
+    <div class="text-center py-5">
+        <div class="card-custom" style="max-width: 600px; margin: 0 auto;">
+            <div class="card-body p-5">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
+                <h3 class="mb-3">No hay fuentes registradas aún</h3>
+                <p class="text-muted mb-4">
+                    Comienza agregando tu primera fuente de noticias. Puedes configurar fuentes RSS, APIs,
+                    web scrapers o feeds JSON para comenzar a ingerir contenido.
+                </p>
+                <a asp-action="Create" class="btn btn-primary-custom">
+                    ➕ Crear Primera Fuente
+                </a>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-custom">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">ID</th>
+                    <th style="width: 20%;">Nombre</th>
+                    <th style="width: 25%;">URL</th>
+                    <th style="width: 12%;">Tipo</th>
+                    <th style="width: 10%;">Secret</th>
+                    <th style="width: 18%;">Descripción</th>
+                    <th style="width: 10%;">Items</th>
+
+                    <!-- comentario -->
+                    <th style="width: 10%;">Acciones</th>
+                    <!-- comentario -->
+
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr class="hover-lift">
+                        <td>
+                            <strong style="color: var(--primary);">#@item.Id</strong>
+                        </td>
+                        <td>
+                            <strong style="color: var(--gray-900);">@item.Name</strong>
+                        </td>
+                        <td>
+                            <a href="@item.Url" target="_blank" class="text-decoration-none"
+                               style="color: var(--gray-600); font-size: 0.9rem;"
+                               title="@item.Url">
+                                @(item.Url.Length > 35 ? item.Url.Substring(0, 35) + "..." : item.Url)
+                                <span style="font-size: 0.8rem;">🔗</span>
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge badge-primary-custom" style="font-size: 0.75rem;">
+                                @item.ComponentType
+                            </span>
+                        </td>
+                        <td>
+                            @if (item.RequiresSecret)
+                            {
+                                <span class="badge badge-warning-custom" style="font-size: 0.75rem;">🔐 Sí</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-success-custom" style="font-size: 0.75rem;">✅ No</span>
+                            }
+                        </td>
+                        <td>
+                            <small style="color: var(--gray-600);">
+                                @(item.Description != null && item.Description.Length > 50 
+                                    ? item.Description.Substring(0, 50) + "..." 
+                                    : (item.Description ?? "-"))
+                            </small>
+                        </td>
+                        <td>
+                            @if (item.SourceItems != null && item.SourceItems.Any())
+                            {
+                                <span class="badge badge-success-custom" style="font-size: 0.75rem;">
+                                    @item.SourceItems.Count()
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge" style="background-color: var(--gray-300); color: var(--gray-600); font-size: 0.75rem;">
+                                    0
+                                </span>
+                            }
+                        </td>
+
+                        <!-- comentario -->
+                        <td>
+                            <form asp-action="AddItem" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="sourceId" value="@item.Id" />
+
+                            <button type="submit"
+                                    class="btn btn-sm btn-primary-custom"
+                                    onclick="return confirmarAccion(@(item.SourceItems != null && item.SourceItems.Any() ? "true" : "false"));">
+                                @(item.SourceItems != null && item.SourceItems.Any()
+                                                            ? "✔ Ya agregado"
+                                                            : "➕ Agregar Item")
+                        </button>
+
+                            </form>
+                        </td>
+                        <!-- comentario -->
+
+
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-4 d-flex justify-content-between align-items-center">
+        <p class="text-muted mb-0">
+            Mostrando <strong style="color: var(--primary);">@Model.Count()</strong> fuente(s) registrada(s)
+        </p>
+        <a asp-action="Create" class="btn btn-secondary-custom">
+            ➕ Agregar Otra Fuente
+        </a>
+    </div>
+}
+
+
+<script>
+    function confirmarAccion(yaExiste) {
+        if (yaExiste) {
+            return confirm("Este item ya fue agregado. ¿Deseas intentar guardarlo nuevamente?");
+        }
+        return true;
+    }
+</script>

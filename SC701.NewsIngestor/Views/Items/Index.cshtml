@@ -1,0 +1,103 @@
+﻿@model IEnumerable<SC701.Models.SourceItem>
+
+@{
+    ViewData["Title"] = "Items Agregados";
+}
+
+<div class="page-header">
+    <h1 class="page-title">
+        📋 Items Agregados
+    </h1>
+    <div>
+        <span class="badge badge-primary-custom" style="font-size: 1rem; padding: 0.6rem 1.2rem;">
+            Total: @Model.Count()
+        </span>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="text-center py-5">
+        <div class="card-custom" style="max-width: 600px; margin: 0 auto;">
+            <div class="card-body p-5">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
+                <h3 class="mb-3">No hay items registrados aún</h3>
+                <p class="text-muted mb-4">
+                    Los items se crearán automáticamente cuando se ejecute la ingesta de noticias
+                    desde las fuentes configuradas.
+                </p>
+                <a asp-controller="Sources" asp-action="Index" class="btn btn-primary-custom">
+                    📡 Ver Fuentes Disponibles
+                </a>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-custom">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 8%;">ID</th>
+                    <th style="width: 30%;">Fuente</th>
+                    <th style="width: 12%;">ID Fuente</th>
+                    <th style="width: 25%;">Fecha de Creación</th>
+                    <th style="width: 25%;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr class="hover-lift">
+                        <td>
+                            <strong style="color: var(--primary);">#@item.Id</strong>
+                        </td>
+                        <td>
+                            @if (item.Source != null)
+                            {
+                                <div>
+                                    <strong style="color: var(--gray-900);">@item.Source.Name</strong>
+                                    <br />
+                                    <small style="color: var(--gray-600);">
+                                        <span class="badge badge-primary-custom" style="font-size: 0.75rem;">
+                                            @item.Source.ComponentType
+                                        </span>
+                                    </small>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Fuente no encontrada</span>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge badge-success-custom">@item.SourceId</span>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>@item.CreatedAt.ToString("dd/MM/yyyy")</strong>
+                                <br />
+                                <small style="color: var(--gray-600);">
+                                    🕒 @item.CreatedAt.ToString("HH:mm:ss")
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            <a asp-action="Details" asp-route-id="@item.Id"
+                               class="btn btn-primary-custom btn-sm">
+                                🔍 Ver Detalle
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-4 text-center">
+        <p class="text-muted">
+            Mostrando <strong style="color: var(--primary);">@Model.Count()</strong> items agregados
+        </p>
+    </div>
+}

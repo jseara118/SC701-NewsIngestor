@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="../SC701.Architecture/SC701.Architecture.csproj" Id="689befb5-0044-4e71-8cf6-8bcf18942207" />
+  <Project Path="../SC701.Data/SC701.Data.csproj" Id="12202e12-ff71-4dbb-b6e4-882f7247e140" />
+  <Project Path="../SC701.Models/SC701.Models.csproj" Id="d7a2492d-591b-454c-be53-d3b04b1e3473" />
+  <Project Path="SC701.NewsIngestor.csproj" />
+</Solution>
