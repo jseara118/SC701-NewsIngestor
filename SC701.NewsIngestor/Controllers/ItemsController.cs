@@ -1,12 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SC701.Models;
 using SC701.Data;
 
 //comment: This controller manages the display of SourceItems in the application.
+// HU-11: Restricciones por rol - Todos pueden ver, solo usuarios autenticados pueden importar
 
 namespace SC701.NewsIngestor.Controllers
 {
+    [Authorize] // HU-09: Requiere autenticación
     public class ItemsController : Controller
     {
         private readonly AppDbContext _context;
@@ -16,7 +19,7 @@ namespace SC701.NewsIngestor.Controllers
             _context = context;
         }
 
-        // GET: Items
+        // GET: Items (Todos los usuarios autenticados pueden ver)
         public async Task<IActionResult> Index()
         {
             var items = await _context.SourceItems
@@ -26,7 +29,7 @@ namespace SC701.NewsIngestor.Controllers
             return View(items);
         }
 
-        // GET: Items/Details/5
+        // GET: Items/Details/5 (Todos los usuarios autenticados pueden ver)
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -46,7 +49,7 @@ namespace SC701.NewsIngestor.Controllers
             return View(sourceItem);
         }
 
-        // GET: Items/Upload
+        // GET: Items/Upload (Todos los usuarios autenticados pueden importar)
         // HU-26: Vista para subir archivos JSON
         public IActionResult Upload()
         {

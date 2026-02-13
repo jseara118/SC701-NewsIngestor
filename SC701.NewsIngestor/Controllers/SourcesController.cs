@@ -1,12 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SC701.Models;
 using SC701.Data;
 
 //comment: This controller manages the CRUD operations for Source entities in the application.
+// HU-11: Restricciones por rol - Solo Admin puede crear/editar/eliminar fuentes
 
 namespace SC701.NewsIngestor.Controllers
 {
+    [Authorize] // HU-09: Requiere autenticación para todo el controller
     public class SourcesController : Controller
     {
         private readonly AppDbContext _context;
@@ -16,7 +19,7 @@ namespace SC701.NewsIngestor.Controllers
             _context = context;
         }
 
-        // GET: Sources
+        // GET: Sources (Todos pueden ver)
         public async Task<IActionResult> Index()
         {
             var sources = await _context.Sources
@@ -26,15 +29,17 @@ namespace SC701.NewsIngestor.Controllers
             return View(sources);
         }
 
-        // GET: Sources/Create
+        // GET: Sources/Create (Solo Admin - HU-11)
+        [Authorize(Roles = "Admin")]
         public IActionResult Create()
         {
             return View();
         }
 
-        // POST: Sources/Create
+        // POST: Sources/Create (Solo Admin - HU-11)
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([Bind("Url,Name,Description,ComponentType,RequiresSecret")] Source source)
         {
             if (ModelState.IsValid)
@@ -47,13 +52,10 @@ namespace SC701.NewsIngestor.Controllers
             return View(source);
         }
 
-
-        ///////////////////////////////////////////////////////////
-        ///
-
-        // POST: Sources/AddItem
+        // POST: Sources/AddItem (Solo Admin puede agregar items - HU-11)
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddItem(int sourceId)
         {
             // 1. Verificar que la fuente exista
@@ -98,12 +100,5 @@ namespace SC701.NewsIngestor.Controllers
 
             return RedirectToAction(nameof(Index));
         }
-
-
-        //////////////////////////////////////////////////////////
-
-
-
-
     }
 }
