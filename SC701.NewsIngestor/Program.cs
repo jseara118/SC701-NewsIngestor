@@ -41,8 +41,15 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
     options.AccessDeniedPath = "/Account/AccessDenied";
-    options.ExpireTimeSpan = TimeSpan.FromHours(24);
-    options.SlidingExpiration = true;
+
+    // ✅ 20 min de inactividad
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
+    options.SlidingExpiration = true; // renueva el cookie mientras el user siga activo
+
+    // hardening recomendado
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
 // ============================================
@@ -109,6 +116,46 @@ app.UseRouting();
 // HU-09: Authentication & Authorization (NUEVO)
 // ============================================
 app.UseAuthentication();
+
+app.Use(async (context, next) =>
+{
+    if (context.User?.Identity?.IsAuthenticated == true)
+    {
+        var userManager = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+        var signInManager = context.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+
+        var userId = userManager.GetUserId(context.User);
+        var sidClaim = context.User.FindFirst("sid")?.Value;
+
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            var user = await userManager.FindByIdAsync(userId);
+
+            if (user == null ||
+                string.IsNullOrWhiteSpace(user.CurrentSessionId) ||
+                string.IsNullOrWhiteSpace(sidClaim) ||
+                user.CurrentSessionId != sidClaim)
+            {
+                await signInManager.SignOutAsync();
+                context.Response.Redirect("/Account/Login?error=session_conflict");
+                return;
+            }
+
+            // actualizar actividad (solo cada minuto para no saturar DB)
+            var now = DateTime.UtcNow;
+            if (user.LastActivityAt == null ||
+                (now - user.LastActivityAt.Value) > TimeSpan.FromMinutes(1))
+            {
+                user.LastActivityAt = now;
+                await userManager.UpdateAsync(user);
+            }
+        }
+    }
+
+    await next();
+});
+
+
 app.UseAuthorization();
 
 app.MapStaticAssets();

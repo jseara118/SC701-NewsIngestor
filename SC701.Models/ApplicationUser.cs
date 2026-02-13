@@ -20,5 +20,8 @@ namespace SC701.Models
 
         [Display(Name = "Último Acceso")]
         public DateTime? LastLoginAt { get; set; }
+
+        public string? CurrentSessionId { get; set; }
+        public DateTime? LastActivityAt { get; set; }
     }
 }

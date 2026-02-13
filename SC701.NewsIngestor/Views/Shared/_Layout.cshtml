@@ -23,6 +23,7 @@
                             aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                         <span class="navbar-toggler-icon"></span>
                     </button>
+
                     <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                         <ul class="navbar-nav flex-grow-1">
                             <li class="nav-item">
@@ -44,6 +45,36 @@
                                 </a>
                             </li>
                         </ul>
+
+                        @* ✅ Auth buttons a la derecha *@
+                        <ul class="navbar-nav ms-auto">
+                            @if (User.Identity?.IsAuthenticated ?? false)
+                            {
+                                <li class="nav-item">
+                                    <span class="nav-link">
+                                        👤 @User.Identity!.Name
+                                    </span>
+                                </li>
+                                <li class="nav-item">
+                                    <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="nav-link btn btn-link p-0">
+                                            🚪 Logout
+                                        </button>
+                                    </form>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Account" ? "active" : "")"
+                                       asp-controller="Account" asp-action="Login">
+                                        🔐 Login
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+
                     </div>
                 </div>
             </nav>

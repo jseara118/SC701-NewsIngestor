@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using SC701.Models;
 using SC701.Models.ViewModels;
+using System.Security.Claims;
 
 namespace SC701.NewsIngestor.Controllers
 {
@@ -40,39 +41,68 @@ namespace SC701.NewsIngestor.Controllers
         {
             ViewData["ReturnUrl"] = returnUrl;
 
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            if (user == null)
             {
-                var result = await _signInManager.PasswordSignInAsync(
-                    model.Email,
-                    model.Password,
-                    model.RememberMe,
-                    lockoutOnFailure: true);
+                ModelState.AddModelError("", "Email o contraseña incorrectos.");
+                return View(model);
+            }
 
-                if (result.Succeeded)
-                {
-                    // Actualizar último login
-                    var user = await _userManager.FindByEmailAsync(model.Email);
-                    if (user != null)
-                    {
-                        user.LastLoginAt = DateTime.UtcNow;
-                        await _userManager.UpdateAsync(user);
-                    }
+            var now = DateTime.UtcNow;
 
-                    if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-                    {
-                        return Redirect(returnUrl);
-                    }
-                    return RedirectToAction("Index", "Home");
-                }
+            // 🔐 BLOQUEAR si ya hay sesión activa (<20 min)
+            var hasActiveSession =
+                !string.IsNullOrWhiteSpace(user.CurrentSessionId) &&
+                user.LastActivityAt != null &&
+                (now - user.LastActivityAt.Value) < TimeSpan.FromMinutes(20);
 
-                if (result.IsLockedOut)
+            if (hasActiveSession)
+            {
+                ModelState.AddModelError("", "Este usuario ya tiene una sesión activa en otro navegador o dispositivo.");
+                return View(model);
+            }
+
+            var result = await _signInManager.PasswordSignInAsync(
+                model.Email,
+                model.Password,
+                model.RememberMe,
+                lockoutOnFailure: true);
+
+            if (result.Succeeded)
+            {
+                user.LastLoginAt = now;
+                user.CurrentSessionId = Guid.NewGuid().ToString();
+                user.LastActivityAt = now;
+
+                await _userManager.UpdateAsync(user);
+
+                // 🔥 Re-emit cookie con claim sid
+                await _signInManager.SignOutAsync();
+
+                var claims = new List<Claim>
                 {
-                    ModelState.AddModelError(string.Empty, "La cuenta está bloqueada. Intenta más tarde.");
-                }
-                else
-                {
-                    ModelState.AddModelError(string.Empty, "Email o contraseña incorrectos.");
-                }
+                    new Claim("sid", user.CurrentSessionId)
+                };
+
+                await _signInManager.SignInWithClaimsAsync(user, model.RememberMe, claims);
+
+                if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                    return Redirect(returnUrl);
+
+                return RedirectToAction("Index", "Home");
+            }
+
+            if (result.IsLockedOut)
+            {
+                ModelState.AddModelError("", "La cuenta está bloqueada. Intenta más tarde.");
+            }
+            else
+            {
+                ModelState.AddModelError("", "Email o contraseña incorrectos.");
             }
 
             return View(model);
@@ -92,31 +122,38 @@ namespace SC701.NewsIngestor.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var user = new ApplicationUser
             {
-                var user = new ApplicationUser
+                UserName = model.Email,
+                Email = model.Email,
+                FullName = model.FullName,
+                RegisteredAt = DateTime.UtcNow,
+                CurrentSessionId = Guid.NewGuid().ToString(),
+                LastActivityAt = DateTime.UtcNow
+            };
+
+            var result = await _userManager.CreateAsync(user, model.Password);
+
+            if (result.Succeeded)
+            {
+                await _userManager.AddToRoleAsync(user, "User");
+
+                var claims = new List<Claim>
                 {
-                    UserName = model.Email,
-                    Email = model.Email,
-                    FullName = model.FullName,
-                    RegisteredAt = DateTime.UtcNow
+                    new Claim("sid", user.CurrentSessionId!)
                 };
 
-                var result = await _userManager.CreateAsync(user, model.Password);
+                await _signInManager.SignInWithClaimsAsync(user, false, claims);
 
-                if (result.Succeeded)
-                {
-                    // HU-10: Asignar rol "User" por defecto
-                    await _userManager.AddToRoleAsync(user, "User");
+                return RedirectToAction("Index", "Home");
+            }
 
-                    await _signInManager.SignInAsync(user, isPersistent: false);
-                    return RedirectToAction("Index", "Home");
-                }
-
-                foreach (var error in result.Errors)
-                {
-                    ModelState.AddModelError(string.Empty, error.Description);
-                }
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError("", error.Description);
             }
 
             return View(model);
@@ -127,8 +164,18 @@ namespace SC701.NewsIngestor.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
+            var user = await _userManager.GetUserAsync(User);
+
+            if (user != null)
+            {
+                user.CurrentSessionId = null;
+                user.LastActivityAt = null;
+                await _userManager.UpdateAsync(user);
+            }
+
             await _signInManager.SignOutAsync();
-            return RedirectToAction("Index", "Home");
+
+            return RedirectToAction("Login", "Account");
         }
 
         // GET: Account/AccessDenied
