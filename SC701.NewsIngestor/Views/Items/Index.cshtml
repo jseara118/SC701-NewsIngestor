@@ -8,10 +8,14 @@
     <h1 class="page-title">
         📋 Items Agregados
     </h1>
-    <div>
+    <div class="d-flex gap-2 align-items-center">
         <span class="badge badge-primary-custom" style="font-size: 1rem; padding: 0.6rem 1.2rem;">
             Total: @Model.Count()
         </span>
+        <!-- HU-26: Botón para importar JSON -->
+        <a asp-action="Upload" class="btn btn-primary-custom">
+            📤 Importar JSON
+        </a>
     </div>
 </div>
 
@@ -23,12 +27,16 @@
                 <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
                 <h3 class="mb-3">No hay items registrados aún</h3>
                 <p class="text-muted mb-4">
-                    Los items se crearán automáticamente cuando se ejecute la ingesta de noticias
-                    desde las fuentes configuradas.
+                    Puedes importar noticias desde archivos JSON o configurar fuentes para ingesta automática.
                 </p>
-                <a asp-controller="Sources" asp-action="Index" class="btn btn-primary-custom">
-                    📡 Ver Fuentes Disponibles
-                </a>
+                <div class="d-flex gap-2 justify-content-center">
+                    <a asp-action="Upload" class="btn btn-primary-custom">
+                        📤 Importar JSON
+                    </a>
+                    <a asp-controller="Sources" asp-action="Index" class="btn btn-secondary-custom">
+                        📡 Ver Fuentes Disponibles
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -40,10 +48,10 @@ else
             <thead>
                 <tr>
                     <th style="width: 8%;">ID</th>
-                    <th style="width: 30%;">Fuente</th>
-                    <th style="width: 12%;">ID Fuente</th>
-                    <th style="width: 25%;">Fecha de Creación</th>
-                    <th style="width: 25%;">Acciones</th>
+                    <th style="width: 25%;">Fuente</th>
+                    <th style="width: 10%;">ID Fuente</th>
+                    <th style="width: 20%;">Fecha de Creación</th>
+                    <th style="width: 37%;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -84,10 +92,19 @@ else
                             </div>
                         </td>
                         <td>
-                            <a asp-action="Details" asp-route-id="@item.Id"
-                               class="btn btn-primary-custom btn-sm">
-                                🔍 Ver Detalle
-                            </a>
+                            <div class="d-flex gap-2">
+                                <a asp-action="Details" asp-route-id="@item.Id"
+                                   class="btn btn-primary-custom btn-sm">
+                                    🔍 Ver Detalle
+                                </a>
+                                <!-- HU-25: Botón para descargar JSON -->
+                                <a href="/api/NewsInterop/export/@item.Id"
+                                   class="btn btn-success-custom btn-sm"
+                                   download
+                                   title="Descargar en formato JSON estándar">
+                                    📥 Descargar
+                                </a>
+                            </div>
                         </td>
                     </tr>
                 }
