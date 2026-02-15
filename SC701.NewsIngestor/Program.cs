@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using SC701.Data;
 using SC701.Models;
+using SC701.NewsIngestor.Services.Ingestion;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,6 +71,14 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
+
+builder.Services.AddHttpClient();
+
+// Ingesta (HU-17)
+builder.Services.AddScoped<ISourceReader, JsonSourceReader>();
+builder.Services.AddScoped<ISourceReader, HtmlSourceReader>();
+builder.Services.AddScoped<ISourceIngestionService, SourceIngestionService>();
+
 
 var app = builder.Build();
 

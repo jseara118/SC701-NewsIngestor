@@ -19,6 +19,7 @@
 
 		<!-- Swagger para documentación de API -->
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+		<PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
 	</ItemGroup>
 
 	<ItemGroup>
