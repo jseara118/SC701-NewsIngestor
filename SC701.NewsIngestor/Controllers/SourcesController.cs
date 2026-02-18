@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SC701.Models;
 using SC701.Data;
+using SC701.Models;
+using SC701.Models.DTOs;
+using SC701.NewsIngestor.Services.Ingestion;
 
 //comment: This controller manages the CRUD operations for Source entities in the application.
 // HU-11: Restricciones por rol - Solo Admin puede crear/editar/eliminar fuentes
@@ -13,10 +15,12 @@ namespace SC701.NewsIngestor.Controllers
     public class SourcesController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly ISourceIngestionService _ingestion;
 
-        public SourcesController(AppDbContext context)
+        public SourcesController(AppDbContext context, ISourceIngestionService ingestion)
         {
             _context = context;
+            _ingestion = ingestion;
         }
 
         // GET: Sources (Todos pueden ver)
@@ -96,7 +100,27 @@ namespace SC701.NewsIngestor.Controllers
             }
 
             // 2. Definir el JSON (por ahora usamos la URL como contenido base)
-            string jsonData = source.Url;
+            StandardNewsItemDto standard;
+            try
+            {
+                standard = await _ingestion.IngestAsync(source);
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Error leyendo la fuente '{source.Name}': {ex.Message}";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var jsonData = System.Text.Json.JsonSerializer.Serialize(
+                standard,
+                new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                    WriteIndented = false
+                }
+            );
+
 
             // 3. Verificar si ya existe un item con la misma información
             bool existeItem = await _context.SourceItems.AnyAsync(i =>
@@ -118,6 +142,7 @@ namespace SC701.NewsIngestor.Controllers
                 Json = jsonData,
                 CreatedAt = DateTime.UtcNow
             };
+
 
             _context.SourceItems.Add(newItem);
             await _context.SaveChangesAsync();
