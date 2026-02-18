@@ -1,4 +1,10 @@
-﻿
+﻿@using SC701.NewsIngestor.Helpers
+@{
+    var theme = Context.Request.Cookies["ui_theme"] ?? "dark";
+    var themeClass = theme == "dark" ? "theme-dark" : "theme-light";
+
+    var lang = Context.Request.Cookies["ui_lang"] ?? "es";
+}
 
 <!DOCTYPE html>
 <html lang="es">
@@ -6,60 +12,121 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - NewsIngestor</title>
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/custom.css" asp-append-version="true" />
 </head>
-<body>
+
+<body class="@themeClass">
     <div class="page-wrapper">
+
+        <!-- ===================== NAVBAR ===================== -->
         <header>
             <nav class="navbar navbar-expand-sm navbar-custom">
                 <div class="container-fluid">
-                    <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                        <span style="font-size: 1.75rem;">📰</span>
+
+                    <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+                        <span style="font-size:1.75rem;">📰</span>
                         <span>NewsIngestor</span>
                     </a>
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"
-                            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+
+                    <button class="navbar-toggler" type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target=".navbar-collapse">
                         <span class="navbar-toggler-icon"></span>
                     </button>
 
                     <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+
+                        <!-- Left menu -->
                         <ul class="navbar-nav flex-grow-1">
+
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")"
-                                   asp-area="" asp-controller="Home" asp-action="Index">
-                                    🏠 Home
+                                   asp-controller="Home" asp-action="Index">
+                                    🏠 @UiText.T("nav.home", lang)
                                 </a>
                             </li>
+
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Sources" ? "active" : "")"
-                                   asp-area="" asp-controller="Sources" asp-action="Index">
-                                    📡 Sources
+                                   asp-controller="Sources" asp-action="Index">
+                                    📡 @UiText.T("nav.sources", lang)
                                 </a>
                             </li>
+
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Items" ? "active" : "")"
-                                   asp-area="" asp-controller="Items" asp-action="Index">
-                                    📋 Items
+                                   asp-controller="Items" asp-action="Index">
+                                    📋 @UiText.T("nav.items", lang)
                                 </a>
                             </li>
+
                         </ul>
 
-                        @* ✅ Auth buttons a la derecha *@
+                        <!-- Right menu -->
                         <ul class="navbar-nav ms-auto">
+
                             @if (User.Identity?.IsAuthenticated ?? false)
                             {
+                                <!-- Admin dropdown -->
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <li class="nav-item dropdown">
+                                        <a class="nav-link dropdown-toggle"
+                                           href="#"
+                                           role="button"
+                                           data-bs-toggle="dropdown">
+                                            ⚙️ @UiText.T("nav.settings", lang)
+                                        </a>
+
+                                        <ul class="dropdown-menu dropdown-menu-end">
+
+                                            <li>
+                                                <a class="dropdown-item"
+                                                   asp-controller="Settings"
+                                                   asp-action="Index">
+                                                    ⚙️ @UiText.T("nav.prefs", lang)
+                                                </a>
+                                            </li>
+
+                                            <li>
+                                                <a class="dropdown-item"
+                                                   asp-controller="Secrets"
+                                                   asp-action="Index">
+                                                    🔐 @UiText.T("nav.secrets", lang)
+                                                </a>
+                                            </li>
+
+                                            <li>
+                                                <a class="dropdown-item"
+                                                   asp-controller="Roles"
+                                                   asp-action="Index">
+                                                    👥 @UiText.T("nav.users_roles", lang)
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                }
+
+                                <!-- User name -->
                                 <li class="nav-item">
                                     <span class="nav-link">
                                         👤 @User.Identity!.Name
                                     </span>
                                 </li>
+
+                                <!-- Logout -->
                                 <li class="nav-item">
-                                    <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                                    <form asp-controller="Account"
+                                          asp-action="Logout"
+                                          method="post"
+                                          class="d-inline">
                                         @Html.AntiForgeryToken()
-                                        <button type="submit" class="nav-link btn btn-link p-0">
-                                            🚪 Logout
+                                        <button type="submit"
+                                                class="nav-link btn btn-link p-0">
+                                            🚪 @UiText.T("nav.logout", lang)
                                         </button>
                                     </form>
                                 </li>
@@ -67,38 +134,46 @@
                             else
                             {
                                 <li class="nav-item">
-                                    <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Account" ? "active" : "")"
-                                       asp-controller="Account" asp-action="Login">
-                                        🔐 Login
+                                    <a class="nav-link"
+                                       asp-controller="Account"
+                                       asp-action="Login">
+                                        🔐 @UiText.T("nav.login", lang)
                                     </a>
                                 </li>
                             }
-                        </ul>
 
+                        </ul>
                     </div>
                 </div>
             </nav>
         </header>
 
+        <!-- ===================== MAIN ===================== -->
         <div class="container">
             <main role="main" class="pb-5">
                 @RenderBody()
             </main>
         </div>
 
+        <!-- ===================== FOOTER ===================== -->
         <footer class="footer-custom">
             <div class="container text-center">
                 <p class="mb-0">
                     <strong>SC701 NewsIngestor</strong> - Proyecto Universitario 2026
                 </p>
-                <small style="opacity: 0.8;">Plataforma de Agregación de Noticias</small>
+                <small style="opacity:0.8;">
+                    Plataforma de Agregación de Noticias
+                </small>
             </div>
         </footer>
+
     </div>
 
+    <!-- Scripts -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

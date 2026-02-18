@@ -1,0 +1,55 @@
+﻿@model List<SC701.Controllers.UserRoleRowVm>
+@{
+    ViewData["Title"] = "Usuarios & Roles";
+}
+
+<div class="container mt-4">
+    <div class="page-header">
+        <h2 class="page-title">👥 Usuarios & Roles</h2>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+    }
+
+    <div class="table-custom">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>Email / Usuario</th>
+                    <th>Rol actual</th>
+                    <th>Cambiar rol</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in Model)
+                {
+                    <tr>
+                        <td>@u.Email</td>
+                        <td>
+                            <span class="badge badge-custom badge-primary-custom">@u.CurrentRole</span>
+                        </td>
+                        <td>
+                            <form asp-action="UpdateRole" method="post" class="d-flex gap-2 align-items-center">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="userId" value="@u.UserId" />
+
+                                <select name="role" class="form-select" style="max-width: 200px;">
+                                    <option value="User" selected="@(u.CurrentRole == "User")">User</option>
+                                    <option value="Admin" selected="@(u.CurrentRole == "Admin")">Admin</option>
+                                </select>
+
+                                <button type="submit" class="btn btn-primary">Actualizar</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
