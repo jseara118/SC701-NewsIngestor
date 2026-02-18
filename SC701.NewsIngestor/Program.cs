@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using SC701.Architecture;
+using SC701.Architecture.Services;
 using SC701.Data;
 using SC701.Models;
 using SC701.NewsIngestor.Services.Ingestion;
@@ -52,6 +54,16 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
+
+// ============================================
+// HU-18: SERVICIOS DE NORMALIZACIÓN Y LECTURA DE FUENTES
+// ============================================
+builder.Services.AddHttpClient(); // Para los SourceReaders (IHttpClientFactory)
+builder.Services.AddScoped<INormalizationService, NormalizationService>();
+builder.Services.AddScoped<ISourceReader, JsonSourceReader>();
+builder.Services.AddScoped<ISourceReader, XmlSourceReader>();
+builder.Services.AddScoped<ISourceReader, HtmlSourceReader>();
+builder.Services.AddScoped<SourceReaderService>();
 
 // ============================================
 // SWAGGER CONFIGURATION (TU CONFIGURACIÓN EXISTENTE)
