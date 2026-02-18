@@ -1,0 +1,130 @@
+@model SC701.Models.DTOs.StandardNewsItemDto
+
+@{
+    ViewData["Title"] = "Detalle del Item";
+}
+
+<div class="page-header">
+    <h1 class="page-title">
+        🔍 Detalle del Item
+        <span class="badge badge-warning-custom ms-2">Desde Fuente</span>
+    </h1>
+</div>
+
+<div class="card-custom">
+    <div class="card-body">
+        <div class="alert alert-info" role="alert">
+            <strong>ℹ️ Nota:</strong> Este item se está mostrando directamente desde la fuente. No está guardado en la base de datos.
+        </div>
+
+        <h2 class="mb-4">@Model.Normalized?.Title</h2>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h5>📡 Información de la Fuente</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th style="width: 40%;">Nombre:</th>
+                        <td>@Model.Source?.Name</td>
+                    </tr>
+                    <tr>
+                        <th>Tipo:</th>
+                        <td><span class="badge badge-primary-custom">@Model.Source?.Type</span></td>
+                    </tr>
+                    <tr>
+                        <th>URL:</th>
+                        <td><a href="@Model.Source?.Url" target="_blank">@Model.Source?.Url</a></td>
+                    </tr>
+                    <tr>
+                        <th>Requiere Secret:</th>
+                        <td>@(Model.Source?.RequiresSecret == true ? "Sí" : "No")</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h5>📄 Información del Contenido</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th style="width: 40%;">ID Normalizado:</th>
+                        <td><code>@Model.Normalized?.Id</code></td>
+                    </tr>
+                    <tr>
+                        <th>ID Externo:</th>
+                        <td><code>@(Model.Normalized?.ExternalId ?? "N/A")</code></td>
+                    </tr>
+                    <tr>
+                        <th>Publicado:</th>
+                        <td>@(Model.Normalized?.PublishedAt.ToString("dd/MM/yyyy HH:mm:ss") ?? "N/A")</td>
+                    </tr>
+                    <tr>
+                        <th>Autor:</th>
+                        <td>@(Model.Normalized?.Author ?? "N/A")</td>
+                    </tr>
+                    <tr>
+                        <th>Idioma:</th>
+                        <td>@(Model.Normalized?.Language ?? "es")</td>
+                    </tr>
+                    <tr>
+                        <th>URL Original:</th>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(Model.Normalized?.Url))
+                            {
+                                <a href="@Model.Normalized.Url" target="_blank">Abrir</a>
+                            }
+                            else
+                            {
+                                <span>N/A</span>
+                            }
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Normalized?.Summary))
+        {
+            <div class="mb-4">
+                <h5>📝 Resumen</h5>
+                <p class="text-muted">@Model.Normalized.Summary</p>
+            </div>
+        }
+
+        <div class="mb-4">
+            <h5>📄 Contenido</h5>
+            <div class="p-3 bg-light rounded" style="max-height: 500px; overflow-y: auto;">
+                @Html.Raw(Model.Normalized?.Content?.Replace("\n", "<br />"))
+            </div>
+        </div>
+
+        @if (Model.Normalized?.Category != null)
+        {
+            <div class="mb-4">
+                <h5>🏷️ Categorías</h5>
+                <div>
+                    @if (!string.IsNullOrWhiteSpace(Model.Normalized.Category.Primary))
+                    {
+                        <span class="badge badge-primary-custom me-2">@Model.Normalized.Category.Primary</span>
+                    }
+                    @if (Model.Normalized.Category.Secondary != null && Model.Normalized.Category.Secondary.Any())
+                    {
+                        @foreach (var sec in Model.Normalized.Category.Secondary)
+                        {
+                            <span class="badge badge-secondary-custom me-2">@sec</span>
+                        }
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="mt-4">
+            <a asp-action="Index" class="btn btn-secondary-custom">← Volver a la Lista</a>
+            @if (!string.IsNullOrWhiteSpace(Model.Normalized?.Url))
+            {
+                <a href="@Model.Normalized.Url" target="_blank" class="btn btn-primary-custom">
+                    🔗 Ver en Fuente Original
+                </a>
+            }
+        </div>
+    </div>
+</div>
+

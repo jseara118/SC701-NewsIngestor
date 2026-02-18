@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
@@ -81,13 +82,16 @@ namespace SC701.NewsIngestor.Controllers.Api
         }
 
         /// <summary>
-        /// Importa un archivo JSON en formato estándar acordado (HU-26, HU-27, HU-28)
+        /// Importa un archivo JSON en formato estándar acordado (HU-26, HU-27, HU-28, HU-24)
+        /// HU-24: Solo usuarios autorizados pueden guardar
         /// </summary>
         /// <param name="file">Archivo JSON en formato edu.univ.ingest.v1</param>
         /// <returns>El SourceItem creado</returns>
         [HttpPost("import")]
+        [Authorize] // HU-24: Requiere autenticación
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ImportItem(IFormFile file)
         {
             // Validaciones básicas del archivo
@@ -151,6 +155,26 @@ namespace SC701.NewsIngestor.Controllers.Api
             // HU-28: Crear o buscar la Source automáticamente
             var source = await GetOrCreateSource(standardItem.Source);
 
+            // HU-24: Extraer NormalizedId para validar duplicados
+            var normalizedId = standardItem.Normalized?.Id ?? standardItem.Normalized?.ExternalId;
+            
+            // HU-24: Verificar duplicados
+            if (!string.IsNullOrWhiteSpace(normalizedId))
+            {
+                var existingItem = await _context.SourceItems
+                    .FirstOrDefaultAsync(si => si.NormalizedId == normalizedId);
+                
+                if (existingItem != null)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Ya existe un item con el mismo ID normalizado",
+                        normalizedId = normalizedId,
+                        existingItemId = existingItem.Id
+                    });
+                }
+            }
+
             // Serializar el item completo para almacenarlo
             var itemJson = JsonSerializer.Serialize(standardItem, new JsonSerializerOptions
             {
@@ -164,6 +188,7 @@ namespace SC701.NewsIngestor.Controllers.Api
             {
                 SourceId = source.Id,
                 Json = itemJson,
+                NormalizedId = normalizedId, // HU-24: Guardar ID normalizado
                 CreatedAt = DateTime.UtcNow
             };
 

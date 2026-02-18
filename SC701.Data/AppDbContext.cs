@@ -36,6 +36,12 @@ namespace SC701.Data
                 .WithMany()
                 .HasForeignKey(s => s.SourceId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // HU-24: Índice único en NormalizedId para evitar duplicados
+            builder.Entity<SourceItem>()
+                .HasIndex(si => si.NormalizedId)
+                .IsUnique()
+                .HasFilter("[NormalizedId] IS NOT NULL");
         }
     }
 }
