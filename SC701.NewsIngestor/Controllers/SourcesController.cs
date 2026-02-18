@@ -37,19 +37,46 @@ namespace SC701.NewsIngestor.Controllers
         }
 
         // POST: Sources/Create (Solo Admin - HU-11)
+        /*   [HttpPost]
+           [ValidateAntiForgeryToken]
+           [Authorize(Roles = "Admin")]
+           public async Task<IActionResult> Create([Bind("Url,Name,Description,ComponentType,RequiresSecret")] Source source)
+           {
+               if (ModelState.IsValid)
+               {
+                   _context.Add(source);
+                   await _context.SaveChangesAsync();
+                   TempData["SuccessMessage"] = $"Fuente '{source.Name}' creada exitosamente";
+                   return RedirectToAction(nameof(Index));
+               }
+               return View(source);
+           }
+        */
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([Bind("Url,Name,Description,ComponentType,RequiresSecret")] Source source)
         {
-            if (ModelState.IsValid)
+            // Validación mínima manual adicional (opcional pero más explícita para la HU)
+            if (string.IsNullOrWhiteSpace(source.Url) ||
+                string.IsNullOrWhiteSpace(source.ComponentType))
             {
-                _context.Add(source);
-                await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = $"Fuente '{source.Name}' creada exitosamente";
+                TempData["ErrorMessage"] = "Debe ingresar una URL válida y un tipo de componente.";
                 return RedirectToAction(nameof(Index));
             }
-            return View(source);
+
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "Los datos ingresados no son válidos.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            _context.Add(source);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Fuente '{source.Name}' creada exitosamente";
+
+            return RedirectToAction(nameof(Index));
         }
 
         // POST: Sources/AddItem (Solo Admin puede agregar items - HU-11)

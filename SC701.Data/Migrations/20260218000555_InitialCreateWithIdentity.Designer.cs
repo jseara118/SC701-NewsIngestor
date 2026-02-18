@@ -12,8 +12,8 @@ using SC701.Data;
 namespace SC701.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260213185321_AddSingleSessionFields")]
-    partial class AddSingleSessionFields
+    [Migration("20260218000555_InitialCreateWithIdentity")]
+    partial class InitialCreateWithIdentity
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
