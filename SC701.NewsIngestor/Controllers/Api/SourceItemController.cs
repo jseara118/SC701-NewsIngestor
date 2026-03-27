@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using SC701.Data;
 using SC701.Models;
+using SC701.Models.DTOs;
 
 namespace SC701.NewsIngestor.Controllers.Api
 {
@@ -19,30 +21,19 @@ namespace SC701.NewsIngestor.Controllers.Api
             _context = context;
         }
 
-        /// <summary>
-        /// Obtiene todos los items de noticias
-        /// </summary>
-        /// <returns>Lista de todos los items</returns>
+        // GET: api/SourceItems
         [HttpGet]
-        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<SourceItem>>> GetSourceItems()
         {
             var items = await _context.SourceItems
                 .Include(i => i.Source)
                 .OrderByDescending(i => i.CreatedAt)
                 .ToListAsync();
-
             return Ok(items);
         }
 
-        /// <summary>
-        /// Obtiene un item específico por su ID
-        /// </summary>
-        /// <param name="id">ID del item</param>
-        /// <returns>El item solicitado</returns>
+        // GET: api/SourceItems/{id}
         [HttpGet("{id}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<SourceItem>> GetSourceItem(int id)
         {
             var item = await _context.SourceItems
@@ -50,28 +41,71 @@ namespace SC701.NewsIngestor.Controllers.Api
                 .FirstOrDefaultAsync(i => i.Id == id);
 
             if (item == null)
-            {
                 return NotFound(new { message = $"No se encontró el item con ID {id}" });
-            }
 
             return Ok(item);
         }
 
-        /// <summary>
-        /// Obtiene todos los items de una fuente específica
-        /// </summary>
-        /// <param name="sourceId">ID de la fuente</param>
-        /// <returns>Lista de items de la fuente</returns>
-        [HttpGet("source/{sourceId}")]
+        // ─────────────────────────────────────────────────────────────────
+        // GET: api/SourceItems/{id}/detail
+        // Endpoint usado por el modal en Items/Index.cshtml.
+        // Parsea el JSON del SourceItem y devuelve un objeto plano con
+        // todos los campos ya extraídos, listo para llenar el modal.
+        //
+        // Respuesta exitosa:
+        // {
+        //   itemId, title, summary, content, author, publishedAt,
+        //   articleUrl, category, language, sourceName, sourceType, createdAt
+        // }
+        // ─────────────────────────────────────────────────────────────────
+        [HttpGet("{id}/detail")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetDetail(int id)
+        {
+            var item = await _context.SourceItems
+                .Include(i => i.Source)
+                .FirstOrDefaultAsync(i => i.Id == id);
+
+            if (item == null)
+                return NotFound(new { message = $"No se encontró el item con ID {id}" });
+
+            // Intentar parsear al formato estándar
+            StandardNewsItemDto? dto = null;
+            try
+            {
+                dto = JsonSerializer.Deserialize<StandardNewsItemDto>(item.Json,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch { /* fallback a campos raw */ }
+
+            // Construir respuesta plana para el modal
+            var detail = new
+            {
+                itemId = item.Id,
+                title = dto?.Normalized?.Title ?? $"Noticia #{item.Id}",
+                summary = dto?.Normalized?.Summary,
+                content = dto?.Normalized?.Content,
+                author = dto?.Normalized?.Author,
+                publishedAt = dto?.Normalized?.PublishedAt ?? item.CreatedAt,
+                articleUrl = dto?.Normalized?.Url,
+                category = dto?.Normalized?.Category?.Primary,
+                language = dto?.Normalized?.Language ?? "es",
+                sourceName = dto?.Source?.Name ?? item.Source?.Name,
+                sourceType = dto?.Source?.Type ?? item.Source?.ComponentType,
+                createdAt = item.CreatedAt
+            };
+
+            return Ok(detail);
+        }
+
+        // GET: api/SourceItems/source/{sourceId}
+        [HttpGet("source/{sourceId}")]
         public async Task<ActionResult<IEnumerable<SourceItem>>> GetItemsBySource(int sourceId)
         {
             var source = await _context.Sources.FindAsync(sourceId);
             if (source == null)
-            {
                 return NotFound(new { message = $"No se encontró la fuente con ID {sourceId}" });
-            }
 
             var items = await _context.SourceItems
                 .Include(i => i.Source)
@@ -82,129 +116,72 @@ namespace SC701.NewsIngestor.Controllers.Api
             return Ok(items);
         }
 
-        /// <summary>
-        /// Crea un nuevo item de noticia
-        /// </summary>
-        /// <param name="item">Datos del item a crear</param>
-        /// <returns>El item creado</returns>
+        // POST: api/SourceItems
         [HttpPost]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<SourceItem>> CreateSourceItem([FromBody] SourceItem item)
         {
             if (!ModelState.IsValid)
-            {
                 return BadRequest(ModelState);
-            }
 
-            // Verificar que la fuente existe
             var source = await _context.Sources.FindAsync(item.SourceId);
             if (source == null)
-            {
                 return BadRequest(new { message = "La fuente especificada no existe" });
-            }
 
-            // Verificar duplicados (mismo SourceId y mismo JSON)
             var existingItem = await _context.SourceItems
                 .FirstOrDefaultAsync(i => i.SourceId == item.SourceId && i.Json == item.Json);
-
             if (existingItem != null)
-            {
                 return BadRequest(new { message = "Ya existe un item idéntico para esta fuente" });
-            }
 
-            // Asignar fecha de creación si no viene
-            if (item.CreatedAt == default)
-            {
-                item.CreatedAt = DateTime.UtcNow;
-            }
+            if (item.CreatedAt == default) item.CreatedAt = DateTime.UtcNow;
 
             _context.SourceItems.Add(item);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(
-                nameof(GetSourceItem),
-                new { id = item.Id },
-                item
-            );
+            return CreatedAtAction(nameof(GetSourceItem), new { id = item.Id }, item);
         }
 
-        /// <summary>
-        /// Actualiza un item existente
-        /// </summary>
-        /// <param name="id">ID del item a actualizar</param>
-        /// <param name="item">Datos actualizados del item</param>
-        /// <returns>Sin contenido si fue exitoso</returns>
+        // PUT: api/SourceItems/{id}
         [HttpPut("{id}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateSourceItem(int id, [FromBody] SourceItem item)
         {
             if (id != item.Id)
-            {
-                return BadRequest(new { message = "El ID de la URL no coincide con el ID del objeto" });
-            }
+                return BadRequest(new { message = "El ID no coincide" });
 
             var existingItem = await _context.SourceItems.FindAsync(id);
             if (existingItem == null)
-            {
                 return NotFound(new { message = $"No se encontró el item con ID {id}" });
-            }
 
-            // Verificar que la fuente existe
             var source = await _context.Sources.FindAsync(item.SourceId);
             if (source == null)
-            {
                 return BadRequest(new { message = "La fuente especificada no existe" });
-            }
 
-            // Actualizar propiedades
             existingItem.SourceId = item.SourceId;
             existingItem.Json = item.Json;
-            // No actualizamos CreatedAt
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
+            try { await _context.SaveChangesAsync(); }
             catch (DbUpdateConcurrencyException)
             {
-                if (!await SourceItemExists(id))
-                {
-                    return NotFound();
-                }
+                if (!await SourceItemExists(id)) return NotFound();
                 throw;
             }
 
             return NoContent();
         }
 
-        /// <summary>
-        /// Elimina un item
-        /// </summary>
-        /// <param name="id">ID del item a eliminar</param>
-        /// <returns>Sin contenido si fue exitoso</returns>
+        // DELETE: api/SourceItems/{id}
         [HttpDelete("{id}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteSourceItem(int id)
         {
             var item = await _context.SourceItems.FindAsync(id);
             if (item == null)
-            {
                 return NotFound(new { message = $"No se encontró el item con ID {id}" });
-            }
 
             _context.SourceItems.Remove(item);
             await _context.SaveChangesAsync();
-
             return NoContent();
         }
 
         private async Task<bool> SourceItemExists(int id)
-        {
-            return await _context.SourceItems.AnyAsync(e => e.Id == id);
-        }
+            => await _context.SourceItems.AnyAsync(e => e.Id == id);
     }
 }

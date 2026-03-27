@@ -1,0 +1,71 @@
+@model SC701.Models.Source
+@{
+    ViewData["Title"] = "Editar Fuente";
+}
+
+<div class="page-header">
+    <h1 class="page-title">✏️ Editar Fuente</h1>
+    <a asp-action="Index" class="btn btn-secondary-custom">← Volver</a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card-custom">
+            <div class="card-header">📝 Modificar datos de la fuente</div>
+            <div class="card-body">
+                <form asp-action="Edit">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="mb-4">
+                        <label asp-for="Name" class="form-label-custom"></label>
+                        <input asp-for="Name" class="form-control form-control-custom" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Url" class="form-label-custom"></label>
+                        <input asp-for="Url" class="form-control form-control-custom" />
+                        <span asp-validation-for="Url" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="ComponentType" class="form-label-custom"></label>
+                        <select asp-for="ComponentType" class="form-select form-select-custom">
+                            <option value="">-- Seleccione un tipo --</option>
+                            <option value="RSS">📰 RSS</option>
+                            <option value="API">🔌 API / NewsAPI</option>
+                            <option value="WebScraper">🕷️ Web Scraper</option>
+                            <option value="JSON">📋 JSON Feed</option>
+                        </select>
+                        <span asp-validation-for="ComponentType" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Description" class="form-label-custom"></label>
+                        <textarea asp-for="Description" class="form-control form-control-custom" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input asp-for="RequiresSecret" class="form-check-input" type="checkbox" />
+                            <label asp-for="RequiresSecret" class="form-check-label form-label-custom"></label>
+                        </div>
+                    </div>
+
+                    <hr class="divider" />
+
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="btn btn-primary-custom">💾 Guardar Cambios</button>
+                        <a asp-action="Index" class="btn btn-secondary-custom">❌ Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}
