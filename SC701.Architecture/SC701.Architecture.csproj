@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SC701.Data\SC701.Data.csproj" />
+    <ProjectReference Include="..\SC701.Models\SC701.Models.csproj" />
+  </ItemGroup>
+
 </Project>

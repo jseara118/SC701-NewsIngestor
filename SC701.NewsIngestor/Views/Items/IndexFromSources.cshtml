@@ -1,0 +1,195 @@
+@model IEnumerable<SC701.Models.DTOs.SourceItemViewModel>
+
+@{
+    ViewData["Title"] = "Items desde Fuentes";
+}
+
+<div class="page-header">
+    <h1 class="page-title">
+        📋 Items desde Fuentes
+    </h1>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge badge-warning-custom" style="font-size: 1rem; padding: 0.6rem 1.2rem;">
+            Total: @Model.Count()
+        </span>
+        <span class="badge badge-info" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;">
+            ⚠️ No guardados en BD
+        </span>
+    </div>
+</div>
+
+@if (ViewBag.Message != null)
+{
+    <div class="alert alert-info" role="alert">
+        <strong>ℹ️ Información:</strong> @ViewBag.Message
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="text-center py-5">
+        <div class="card-custom" style="max-width: 600px; margin: 0 auto;">
+            <div class="card-body p-5">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
+                <h3 class="mb-3">No se encontraron items en las fuentes</h3>
+                <p class="text-muted mb-4">
+                    Configura fuentes de noticias para ver contenido aquí.
+                </p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <a asp-controller="Sources" asp-action="Create" class="btn btn-primary-custom">
+                        ➕ Crear Fuente
+                    </a>
+                    <a asp-controller="Sources" asp-action="Index" class="btn btn-secondary-custom">
+                        📡 Ver Fuentes Disponibles
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-custom">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 8%;">ID Normalizado</th>
+                    <th style="width: 25%;">Fuente</th>
+                    <th style="width: 20%;">Título</th>
+                    <th style="width: 15%;">Fecha Publicación</th>
+                    <th style="width: 32%;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr class="hover-lift">
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.NormalizedId))
+                            {
+                                <strong style="color: var(--primary); font-size: 0.85rem;">
+                                    @item.NormalizedId.Substring(0, Math.Min(8, item.NormalizedId.Length))...
+                                </strong>
+                            }
+                            else
+                            {
+                                <span class="text-muted">N/A</span>
+                            }
+                        </td>
+                        <td>
+                            <div>
+                                <strong style="color: var(--gray-900);">@item.SourceName</strong>
+                                <br />
+                                <small style="color: var(--gray-600);">
+                                    <span class="badge badge-primary-custom" style="font-size: 0.75rem;">
+                                        @item.ComponentType
+                                    </span>
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <strong style="color: var(--gray-900);">@item.Title</strong>
+                                @if (!string.IsNullOrWhiteSpace(item.Summary))
+                                {
+                                    <br />
+                                    <small style="color: var(--gray-600);">
+                                        @(item.Summary.Length > 50 ? item.Summary.Substring(0, 50) + "..." : item.Summary)
+                                    </small>
+                                }
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>@item.PublishedAt.ToString("dd/MM/yyyy")</strong>
+                                <br />
+                                <small style="color: var(--gray-600);">
+                                    🕒 @item.PublishedAt.ToString("HH:mm:ss")
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                @if (item.StandardItem != null)
+                                {
+                                    <button type="button" 
+                                            class="btn btn-primary-custom btn-sm" 
+                                            onclick="showItemDetail(@Html.Raw(Json.Serialize(item.StandardItem)))">
+                                        🔍 Ver Detalle
+                                    </button>
+                                    <a href="@item.StandardItem.Normalized?.Url" 
+                                       target="_blank"
+                                       class="btn btn-success-custom btn-sm"
+                                       title="Abrir en fuente original">
+                                        🔗 Ver Original
+                                    </a>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-4 text-center">
+        <p class="text-muted">
+            Mostrando <strong style="color: var(--primary);">@Model.Count()</strong> items desde fuentes
+            <br />
+            <small>Estos items no están guardados en la base de datos. Configura fuentes y guarda items para persistirlos.</small>
+        </p>
+    </div>
+}
+
+<!-- Modal para mostrar detalles del item -->
+<div class="modal fade" id="itemDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="itemDetailModalTitle">Detalle del Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="itemDetailModalBody">
+                <!-- Contenido dinámico -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showItemDetail(item) {
+        const modal = new bootstrap.Modal(document.getElementById('itemDetailModal'));
+        const title = document.getElementById('itemDetailModalTitle');
+        const body = document.getElementById('itemDetailModalBody');
+        
+        title.textContent = item.normalized?.title || 'Sin título';
+        
+        let html = `
+            <div class="mb-3">
+                <strong>Fuente:</strong> ${item.source?.name || 'N/A'}<br />
+                <strong>Tipo:</strong> ${item.source?.type || 'N/A'}<br />
+                <strong>URL:</strong> <a href="${item.source?.url || '#'}" target="_blank">${item.source?.url || 'N/A'}</a>
+            </div>
+            <div class="mb-3">
+                <strong>Resumen:</strong>
+                <p>${item.normalized?.summary || 'Sin resumen'}</p>
+            </div>
+            <div class="mb-3">
+                <strong>Contenido:</strong>
+                <p style="max-height: 300px; overflow-y: auto;">${item.normalized?.content || 'Sin contenido'}</p>
+            </div>
+            <div class="mb-3">
+                <strong>Publicado:</strong> ${item.normalized?.publishedAt ? new Date(item.normalized.publishedAt).toLocaleString('es-ES') : 'N/A'}<br />
+                <strong>Autor:</strong> ${item.normalized?.author || 'N/A'}<br />
+                <strong>Idioma:</strong> ${item.normalized?.language || 'N/A'}
+            </div>
+        `;
+        
+        body.innerHTML = html;
+        modal.show();
+    }
+</script>
+

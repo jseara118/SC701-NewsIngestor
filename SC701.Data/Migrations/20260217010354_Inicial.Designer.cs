@@ -12,8 +12,8 @@ using SC701.Data;
 namespace SC701.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260213171157_InitialCreateWithIdentity")]
-    partial class InitialCreateWithIdentity
+    [Migration("20260217010354_Inicial")]
+    partial class Inicial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -170,6 +170,9 @@ namespace SC701.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("CurrentSessionId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -181,6 +184,9 @@ namespace SC701.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("LastActivityAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime2");
@@ -353,10 +359,18 @@ namespace SC701.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("NormalizedId")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<int>("SourceId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("NormalizedId")
+                        .IsUnique()
+                        .HasFilter("[NormalizedId] IS NOT NULL");
 
                     b.HasIndex("SourceId");
 
