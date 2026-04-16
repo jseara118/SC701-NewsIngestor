@@ -1,23 +1,27 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SC701.Architecture.Services;
 using SC701.Data;
 using SC701.Models;
 using SC701.Models.DTOs;
-using SC701.NewsIngestor.Services.Ingestion;
+
+//comment: This controller manages the display of SourceItems in the application.
+// HU-11: Restricciones por rol - Todos pueden ver, solo usuarios autenticados pueden importar
+// HU-21: Mostrar items desde fuentes si BD está vacía
 
 namespace SC701.NewsIngestor.Controllers
 {
-    [Authorize]
+    [Authorize] // HU-09: Requiere autenticación
     public class ItemsController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly ISourceIngestionService _ingestion;
+        private readonly SourceReaderService _sourceReaderService;
 
-        public ItemsController(AppDbContext context, ISourceIngestionService ingestion)
+        public ItemsController(AppDbContext context, SourceReaderService sourceReaderService)
         {
             _context = context;
-            _ingestion = ingestion;
+            _sourceReaderService = sourceReaderService;
         }
 
         // GET: Items
@@ -48,12 +52,13 @@ namespace SC701.NewsIngestor.Controllers
                     Summary = item.Normalized?.Summary,
                     PublishedAt = item.Normalized?.PublishedAt ?? DateTime.UtcNow,
                     CreatedAt = item.ExportedAt,
+                    NormalizedId = item.Normalized?.Id,
                     IsFromSource = true,
                     StandardItem = item
                 }).ToList();
 
                 ViewBag.Source = "sources";
-                ViewBag.Message = "No hay items guardados. Mostrando items desde fuentes configuradas.";
+                ViewBag.Message = "No hay items guardados en la base de datos. Mostrando items desde fuentes configuradas.";
                 return View("IndexFromSources", viewModel);
             }
             catch (Exception ex)
