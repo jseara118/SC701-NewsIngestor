@@ -15,8 +15,7 @@ public class JsonSourceReader : ISourceReader
     }
 
     public bool CanHandle(string componentType)
-        => componentType.Equals("json", StringComparison.OrdinalIgnoreCase)
-        || componentType.Equals("api", StringComparison.OrdinalIgnoreCase);
+     => componentType.Equals("json", StringComparison.OrdinalIgnoreCase);
 
     public async Task<StandardNewsItemDto> ReadAsync(Source source, CancellationToken ct = default)
     {

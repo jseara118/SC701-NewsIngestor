@@ -34,10 +34,10 @@
                         <label asp-for="ComponentType" class="form-label-custom"></label>
                         <select asp-for="ComponentType" class="form-select form-select-custom">
                             <option value="">-- Seleccione un tipo --</option>
-                            <option value="RSS">📰 RSS</option>
-                            <option value="API">🔌 API / NewsAPI</option>
-                            <option value="WebScraper">🕷️ Web Scraper</option>
-                            <option value="JSON">📋 JSON Feed</option>
+                            <option value="rss">📰 RSS</option>
+                            <option value="newsapi">🗞️ NewsAPI</option>
+                            <option value="html">🕷️ Web Scraper</option>
+                            <option value="json">📋 JSON Feed</option>
                         </select>
                         <span asp-validation-for="ComponentType" class="text-danger"></span>
                     </div>
@@ -67,5 +67,7 @@
 </div>
 
 @section Scripts {
-    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 }

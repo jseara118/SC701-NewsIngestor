@@ -1,30 +1,25 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SC701.Architecture.Services;
 using SC701.Data;
 using SC701.Models;
 using SC701.Models.DTOs;
-
-//comment: This controller manages the display of SourceItems in the application.
-// HU-11: Restricciones por rol - Todos pueden ver, solo usuarios autenticados pueden importar
-// HU-21: Mostrar items desde fuentes si BD está vacía
+using SC701.NewsIngestor.Services.Ingestion;
 
 namespace SC701.NewsIngestor.Controllers
 {
-    [Authorize] // HU-09: Requiere autenticación
+    [Authorize]
     public class ItemsController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly SourceReaderService _sourceReaderService;
+        private readonly ISourceIngestionService _ingestion;
 
-        public ItemsController(AppDbContext context, SourceReaderService sourceReaderService)
+        public ItemsController(AppDbContext context, ISourceIngestionService ingestion)
         {
             _context = context;
-            _sourceReaderService = sourceReaderService;
+            _ingestion = ingestion;
         }
 
-        // GET: Items (Todos los usuarios autenticados pueden ver)
         // HU-21: Si hay items en BD → mostrar desde BD, si NO → mostrar desde fuentes
         public async Task<IActionResult> Index()
         {
@@ -33,22 +28,26 @@ namespace SC701.NewsIngestor.Controllers
                 .OrderByDescending(i => i.CreatedAt)
                 .ToListAsync();
 
-            // HU-21: Si hay items guardados, mostrarlos desde BD
             if (itemsInDb.Any())
             {
                 ViewBag.Source = "database";
                 return View(itemsInDb);
             }
 
-            // HU-21: Si NO hay items, leer desde fuentes
             try
             {
-                var normalizedItems = await _sourceReaderService.ReadFromAllSourcesAsync();
-                
-                // Convertir StandardNewsItemDto a un formato que la vista pueda usar
-                var viewModel = normalizedItems.Select(item => new SourceItemViewModel
+                var sources = await _context.Sources.ToListAsync();
+                var allItems = new List<StandardNewsItemDto>();
+
+                foreach (var source in sources)
                 {
-                    Id = 0, // No está guardado en BD
+                    var items = await _ingestion.IngestManyAsync(source);
+                    allItems.AddRange(items);
+                }
+
+                var viewModel = allItems.Select(item => new SourceItemViewModel
+                {
+                    Id = 0,
                     SourceName = item.Source?.Name ?? "Fuente desconocida",
                     SourceId = int.TryParse(item.Source?.Id, out var sourceId) ? sourceId : 0,
                     ComponentType = item.Source?.Type ?? "unknown",
@@ -56,13 +55,12 @@ namespace SC701.NewsIngestor.Controllers
                     Summary = item.Normalized?.Summary,
                     PublishedAt = item.Normalized?.PublishedAt ?? DateTime.UtcNow,
                     CreatedAt = item.ExportedAt,
-                    NormalizedId = item.Normalized?.Id,
                     IsFromSource = true,
                     StandardItem = item
                 }).ToList();
 
                 ViewBag.Source = "sources";
-                ViewBag.Message = "No hay items guardados en la base de datos. Mostrando items desde fuentes configuradas.";
+                ViewBag.Message = "No hay items guardados. Mostrando items desde fuentes configuradas.";
                 return View("IndexFromSources", viewModel);
             }
             catch (Exception ex)
@@ -73,53 +71,24 @@ namespace SC701.NewsIngestor.Controllers
             }
         }
 
-        // GET: Items/Details/5 (Todos los usuarios autenticados pueden ver)
-        // HU-21: También puede mostrar detalles de items desde fuentes
-        public async Task<IActionResult> Details(int? id, string? normalizedId)
+        // HU-21: Detalles — busca en BD, sin fallback a fuentes (evita llamadas costosas)
+        public async Task<IActionResult> Details(int? id)
         {
-            // Si se proporciona normalizedId, buscar desde fuentes
-            if (!string.IsNullOrWhiteSpace(normalizedId))
-            {
-                try
-                {
-                    var normalizedItems = await _sourceReaderService.ReadFromAllSourcesAsync();
-                    var item = normalizedItems.FirstOrDefault(i => 
-                        i.Normalized?.Id == normalizedId || 
-                        i.Normalized?.ExternalId == normalizedId);
-                    
-                    if (item != null)
-                    {
-                        ViewBag.IsFromSource = true;
-                        return View("DetailsFromSource", item);
-                    }
-                }
-                catch
-                {
-                    // Continuar con búsqueda en BD
-                }
-            }
-
-            // Búsqueda normal en BD
             if (id == null)
-            {
                 return NotFound();
-            }
 
             var sourceItem = await _context.SourceItems
                 .Include(i => i.Source)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (sourceItem == null)
-            {
                 return NotFound();
-            }
 
             ViewBag.IsFromSource = false;
             return View(sourceItem);
         }
 
-        // GET: Items/Upload (Todos los usuarios autenticados pueden importar)
-        // HU-26: Vista para subir archivos JSON
+        // HU-26: Subir archivos JSON
         public IActionResult Upload()
         {
             return View();
