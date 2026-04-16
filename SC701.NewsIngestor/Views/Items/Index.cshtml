@@ -42,6 +42,24 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
+     ALERTS
+     ══════════════════════════════════════════════════════════ -->
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-4">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mb-4">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════
      EMPTY STATE
      ══════════════════════════════════════════════════════════ -->
 @if (!Model.Any())
@@ -135,13 +153,28 @@ else
                             }
                             <span class="meta-date">📅 @pubDate.ToString("dd MMM yyyy")</span>
                         </div>
-                        <a href="/api/NewsInterop/export/@item.Id"
-                           class="btn-icon-sm"
-                           download
-                           title="Descargar JSON"
-                           onclick="event.stopPropagation()">
-                            📥
-                        </a>
+                        <!-- AGREGADO: botón descarga + delete para Admin -->
+                        <div class="d-flex gap-1 align-items-center">
+                            <a href="/api/NewsInterop/export/@item.Id"
+                               class="btn-icon-sm"
+                               download
+                               title="Descargar JSON"
+                               onclick="event.stopPropagation()">
+                                📥
+                            </a>
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <form asp-action="Delete" asp-route-id="@item.Id" method="post"
+                                      class="d-inline"
+                                      onsubmit="event.stopPropagation(); return confirm('¿Eliminar esta noticia?')">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn-icon-sm btn-icon-danger"
+                                            title="Eliminar noticia">
+                                        🗑
+                                    </button>
+                                </form>
+                            }
+                        </div>
                     </div>
                 </div>
 
@@ -300,8 +333,11 @@ else
     cursor: pointer;
     text-decoration: none;
     transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
 }
-.btn-icon-sm:hover { background: var(--gray-200); }
+.btn-icon-sm:hover      { background: var(--gray-200); }
+.btn-icon-danger:hover  { background: #FEE2E2; }
 
 /* Modal */
 .modal-news-content  { border-radius: var(--radius-lg); overflow: hidden; }
@@ -391,3 +427,4 @@ async function openNewsModal(id) {
 }
 </script>
 }
+

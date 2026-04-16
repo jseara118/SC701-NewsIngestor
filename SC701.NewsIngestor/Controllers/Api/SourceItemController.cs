@@ -10,7 +10,7 @@ namespace SC701.NewsIngestor.Controllers.Api
     /// <summary>
     /// API Controller para gestionar SourceItems (Items de noticias)
     /// </summary>
-    [Route("api/[controller]")]
+    [Route("api/SourceItems")]
     [ApiController]
     public class SourceItemsApiController : ControllerBase
     {

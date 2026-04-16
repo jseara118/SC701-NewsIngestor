@@ -24,8 +24,7 @@ namespace SC701.NewsIngestor.Controllers
             _sourceReaderService = sourceReaderService;
         }
 
-        // GET: Items (Todos los usuarios autenticados pueden ver)
-        // HU-21: Si hay items en BD → mostrar desde BD, si NO → mostrar desde fuentes
+        // GET: Items
         public async Task<IActionResult> Index()
         {
             var itemsInDb = await _context.SourceItems
@@ -33,22 +32,19 @@ namespace SC701.NewsIngestor.Controllers
                 .OrderByDescending(i => i.CreatedAt)
                 .ToListAsync();
 
-            // HU-21: Si hay items guardados, mostrarlos desde BD
             if (itemsInDb.Any())
             {
                 ViewBag.Source = "database";
                 return View(itemsInDb);
             }
 
-            // HU-21: Si NO hay items, leer desde fuentes
             try
             {
                 var normalizedItems = await _sourceReaderService.ReadFromAllSourcesAsync();
-                
-                // Convertir StandardNewsItemDto a un formato que la vista pueda usar
+
                 var viewModel = normalizedItems.Select(item => new SourceItemViewModel
                 {
-                    Id = 0, // No está guardado en BD
+                    Id = 0,
                     SourceName = item.Source?.Name ?? "Fuente desconocida",
                     SourceId = int.TryParse(item.Source?.Id, out var sourceId) ? sourceId : 0,
                     ComponentType = item.Source?.Type ?? "unknown",
@@ -73,56 +69,65 @@ namespace SC701.NewsIngestor.Controllers
             }
         }
 
-        // GET: Items/Details/5 (Todos los usuarios autenticados pueden ver)
-        // HU-21: También puede mostrar detalles de items desde fuentes
+        // GET: Items/Details/5
         public async Task<IActionResult> Details(int? id, string? normalizedId)
         {
-            // Si se proporciona normalizedId, buscar desde fuentes
             if (!string.IsNullOrWhiteSpace(normalizedId))
             {
                 try
                 {
                     var normalizedItems = await _sourceReaderService.ReadFromAllSourcesAsync();
-                    var item = normalizedItems.FirstOrDefault(i => 
-                        i.Normalized?.Id == normalizedId || 
+                    var item = normalizedItems.FirstOrDefault(i =>
+                        i.Normalized?.Id == normalizedId ||
                         i.Normalized?.ExternalId == normalizedId);
-                    
+
                     if (item != null)
                     {
                         ViewBag.IsFromSource = true;
                         return View("DetailsFromSource", item);
                     }
                 }
-                catch
-                {
-                    // Continuar con búsqueda en BD
-                }
+                catch { }
             }
 
-            // Búsqueda normal en BD
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
             var sourceItem = await _context.SourceItems
                 .Include(i => i.Source)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
-            if (sourceItem == null)
-            {
-                return NotFound();
-            }
+            if (sourceItem == null) return NotFound();
 
             ViewBag.IsFromSource = false;
             return View(sourceItem);
         }
 
-        // GET: Items/Upload (Todos los usuarios autenticados pueden importar)
-        // HU-26: Vista para subir archivos JSON
+        // GET: Items/Upload
         public IActionResult Upload()
         {
             return View();
+        }
+
+        // POST: Items/Delete/5
+        // HU-11: Solo Admin puede eliminar
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var item = await _context.SourceItems.FindAsync(id);
+
+            if (item == null)
+            {
+                TempData["ErrorMessage"] = "No se encontró la noticia.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            _context.SourceItems.Remove(item);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Noticia eliminada correctamente.";
+            return RedirectToAction(nameof(Index));
         }
     }
 }

@@ -9,6 +9,7 @@ using SC701.NewsIngestor.Services.Ingestion;
 // ──────────────────────────────────────────────────────
 using IngestReader = SC701.NewsIngestor.Services.Ingestion.ISourceReader;
 using IngestService = SC701.NewsIngestor.Services.Ingestion.ISourceIngestionService;
+using ArchReader = SC701.Architecture.ISourceReader;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,6 +59,14 @@ builder.Services.AddScoped<IngestReader, HtmlSourceReader>();
 builder.Services.AddScoped<IngestReader, NewsApiSourceReader>();
 builder.Services.AddScoped<IngestService, SourceIngestionService>();
 
+// ============================================
+// SC701.Architecture (HomeController + ItemsController)
+// ============================================
+builder.Services.AddScoped<SC701.Architecture.INormalizationService, SC701.Architecture.Services.NormalizationService>(); // 👈 esta
+builder.Services.AddScoped<ArchReader, SC701.Architecture.Services.JsonSourceReader>();
+builder.Services.AddScoped<ArchReader, SC701.Architecture.Services.XmlSourceReader>();
+builder.Services.AddScoped<ArchReader, SC701.Architecture.Services.HtmlSourceReader>();
+builder.Services.AddScoped<SC701.Architecture.Services.SourceReaderService>();
 // ============================================
 // SWAGGER
 // ============================================

@@ -4,7 +4,6 @@ using SC701.Architecture.Services;
 using SC701.Data;
 using SC701.Models;
 
-//comment: This is a simple HomeController for an ASP.NET Core MVC application.
 // HU-21: Mostrar items desde fuentes si BD está vacía
 
 namespace SC701.NewsIngestor.Controllers
@@ -22,33 +21,31 @@ namespace SC701.NewsIngestor.Controllers
 
         public async Task<IActionResult> Index()
         {
-            // HU-21: Verificar si hay items en BD para mostrar en la landing page
-            var itemsCount = await _context.SourceItems.CountAsync();
-            ViewBag.ItemsCount = itemsCount;
-            ViewBag.HasItems = itemsCount > 0;
+            // 1. Noticias GUARDADAS en Base de Datos (últimas 6)
+            var savedItems = await _context.SourceItems
+                .Include(i => i.Source)
+                .OrderByDescending(i => i.CreatedAt)
+                .Take(6)
+                .ToListAsync();
 
-            // Si no hay items, intentar leer desde fuentes para mostrar preview
-            if (itemsCount == 0)
+            // 2. Fuentes para la sección de noticias en vivo
+            var sources = await _context.Sources
+                .OrderBy(s => s.Name)
+                .ToListAsync();
+            ViewBag.Sources = sources;
+
+            // 3. Noticias en vivo desde fuentes externas (preview)
+            try
             {
-                try
-                {
-                    var sourcesCount = await _context.Sources.CountAsync();
-                    ViewBag.SourcesCount = sourcesCount;
-                    
-                    if (sourcesCount > 0)
-                    {
-                        var normalizedItems = await _sourceReaderService.ReadFromAllSourcesAsync();
-                        ViewBag.AvailableItemsFromSources = normalizedItems.Count;
-                        ViewBag.SampleItems = normalizedItems.Take(3).ToList(); // Mostrar 3 items de ejemplo
-                    }
-                }
-                catch
-                {
-                    // Si hay error, simplemente no mostrar preview
-                }
+                var liveItems = await _sourceReaderService.ReadFromAllSourcesAsync();
+                ViewBag.LiveItems = liveItems.Take(6).ToList();
+            }
+            catch
+            {
+                ViewBag.LiveItems = null;
             }
 
-            return View();
+            return View(savedItems);
         }
 
         public IActionResult Error()
