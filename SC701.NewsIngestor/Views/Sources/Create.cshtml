@@ -44,10 +44,10 @@
                         <label asp-for="ComponentType" class="form-label-custom"></label>
                         <select asp-for="ComponentType" class="form-select form-select-custom">
                             <option value="">-- Seleccione un tipo --</option>
-                            <option value="RSS">📰 RSS</option>
-                            <option value="API">🔌 API</option>
-                            <option value="WebScraper">🕷️ Web Scraper</option>
-                            <option value="JSON">📋 JSON Feed</option>
+                            <option value="rss">📰 RSS</option>
+                            <option value="newsapi">🗞️ NewsAPI</option>
+                            <option value="html">🕷️ Web Scraper</option>
+                            <option value="json">📋 JSON Feed</option>
                         </select>
                         <span asp-validation-for="ComponentType" class="text-danger"></span>
                     </div>
@@ -101,8 +101,8 @@
                 </div>
 
                 <div class="mb-3">
-                    <span class="badge badge-primary-custom mb-2">🔌 API</span>
-                    <p class="small mb-0">APIs REST de proveedores de noticias como NewsAPI, Guardian, etc.</p>
+                    <span class="badge badge-primary-custom mb-2">🗞️ NewsAPI</span>
+                    <p class="small mb-0">Conecta con NewsAPI.org para traer titulares en tiempo real. Requiere API key.</p>
                 </div>
 
                 <div class="mb-3">

@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SC701.Architecture.Services;
 using SC701.Data;
-using SC701.Models;
+using SC701.NewsIngestor.Services.Ingestion;
 
 // HU-21: Mostrar items desde fuentes si BD está vacía
 
@@ -11,12 +10,12 @@ namespace SC701.NewsIngestor.Controllers
     public class HomeController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly SourceReaderService _sourceReaderService;
+        private readonly ISourceIngestionService _ingestion;
 
-        public HomeController(AppDbContext context, SourceReaderService sourceReaderService)
+        public HomeController(AppDbContext context, ISourceIngestionService ingestion)
         {
             _context = context;
-            _sourceReaderService = sourceReaderService;
+            _ingestion = ingestion;
         }
 
         public async Task<IActionResult> Index()

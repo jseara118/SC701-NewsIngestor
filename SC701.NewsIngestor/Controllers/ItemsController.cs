@@ -1,27 +1,23 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SC701.Architecture.Services;
 using SC701.Data;
 using SC701.Models;
 using SC701.Models.DTOs;
-
-//comment: This controller manages the display of SourceItems in the application.
-// HU-11: Restricciones por rol - Todos pueden ver, solo usuarios autenticados pueden importar
-// HU-21: Mostrar items desde fuentes si BD está vacía
+using SC701.NewsIngestor.Services.Ingestion;
 
 namespace SC701.NewsIngestor.Controllers
 {
-    [Authorize] // HU-09: Requiere autenticación
+    [Authorize]
     public class ItemsController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly SourceReaderService _sourceReaderService;
+        private readonly ISourceIngestionService _ingestion;
 
-        public ItemsController(AppDbContext context, SourceReaderService sourceReaderService)
+        public ItemsController(AppDbContext context, ISourceIngestionService ingestion)
         {
             _context = context;
-            _sourceReaderService = sourceReaderService;
+            _ingestion = ingestion;
         }
 
         // GET: Items
@@ -52,13 +48,12 @@ namespace SC701.NewsIngestor.Controllers
                     Summary = item.Normalized?.Summary,
                     PublishedAt = item.Normalized?.PublishedAt ?? DateTime.UtcNow,
                     CreatedAt = item.ExportedAt,
-                    NormalizedId = item.Normalized?.Id,
                     IsFromSource = true,
                     StandardItem = item
                 }).ToList();
 
                 ViewBag.Source = "sources";
-                ViewBag.Message = "No hay items guardados en la base de datos. Mostrando items desde fuentes configuradas.";
+                ViewBag.Message = "No hay items guardados. Mostrando items desde fuentes configuradas.";
                 return View("IndexFromSources", viewModel);
             }
             catch (Exception ex)
