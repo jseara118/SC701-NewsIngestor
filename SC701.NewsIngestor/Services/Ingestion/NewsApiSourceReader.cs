@@ -18,8 +18,7 @@ public class NewsApiSourceReader : ISourceReader
     }
 
     public bool CanHandle(string componentType) =>
-        componentType.Equals("newsapi", StringComparison.OrdinalIgnoreCase) ||
-        componentType.Equals("api", StringComparison.OrdinalIgnoreCase);
+     componentType.Equals("newsapi", StringComparison.OrdinalIgnoreCase);
 
     // Cumple con ISourceReader — necesita el apiKey via SourceIngestionService
     public Task<StandardNewsItemDto> ReadAsync(Source source, CancellationToken ct = default)

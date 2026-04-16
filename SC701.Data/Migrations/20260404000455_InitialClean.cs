@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace SC701.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreateWithIdentity : Migration
+    public partial class InitialClean : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -226,6 +226,7 @@ namespace SC701.Data.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     SourceId = table.Column<int>(type: "int", nullable: false),
                     Json = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NormalizedId = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
@@ -288,6 +289,13 @@ namespace SC701.Data.Migrations
                 table: "Settings",
                 column: "Key",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SourceItems_NormalizedId",
+                table: "SourceItems",
+                column: "NormalizedId",
+                unique: true,
+                filter: "[NormalizedId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SourceItems_SourceId",

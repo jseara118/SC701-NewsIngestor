@@ -12,8 +12,8 @@ using SC701.Data;
 namespace SC701.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260218000555_InitialCreateWithIdentity")]
-    partial class InitialCreateWithIdentity
+    [Migration("20260404000455_InitialClean")]
+    partial class InitialClean
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -359,10 +359,18 @@ namespace SC701.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("NormalizedId")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<int>("SourceId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("NormalizedId")
+                        .IsUnique()
+                        .HasFilter("[NormalizedId] IS NOT NULL");
 
                     b.HasIndex("SourceId");
 

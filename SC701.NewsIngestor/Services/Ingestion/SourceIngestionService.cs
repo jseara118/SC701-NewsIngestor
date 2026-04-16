@@ -28,25 +28,24 @@ public class SourceIngestionService : ISourceIngestionService
         var reader = _readers.FirstOrDefault(r => r.CanHandle(source.ComponentType))
             ?? throw new InvalidOperationException(
                 $"No hay lector para ComponentType='{source.ComponentType}'. " +
-                "Válidos: json, api, rss, xml, atom, html, newsapi.");
+                "Válidos: json, newsapi, rss, xml, atom, html.");
 
-        string? secretValue = null;
-        if (source.RequiresSecret)
+        // NewsAPI siempre busca el secret, independiente del flag RequiresSecret
+        if (reader is NewsApiSourceReader newsApi)
         {
-            secretValue = await _context.Secrets
+            var secretValue = await _context.Secrets
                 .Where(s => s.SourceId == source.Id)
                 .OrderByDescending(s => s.UpdatedAt)
                 .Select(s => s.Value)
                 .FirstOrDefaultAsync(ct);
-        }
 
-        if (reader is NewsApiSourceReader newsApi)
             return await newsApi.ReadManyAsync(source, secretValue, ct);
+        }
 
         if (reader is XmlSourceReader xml)
             return await xml.ReadManyAsync(source, ct);
 
         var single = await reader.ReadAsync(source, ct);
-        return new List<StandardNewsItemDto> { single };
+        return [single];
     }
 }
