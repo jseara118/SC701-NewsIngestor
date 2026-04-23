@@ -25,12 +25,16 @@ public class SourceIngestionService : ISourceIngestionService
 
     public async Task<List<StandardNewsItemDto>> IngestManyAsync(Source source, CancellationToken ct = default)
     {
-        var reader = _readers.FirstOrDefault(r => r.CanHandle(source.ComponentType))
-            ?? throw new InvalidOperationException(
-                $"No hay lector para ComponentType='{source.ComponentType}'. " +
-                "Válidos: json, newsapi, rss, xml, atom, html, api.");
+        var reader = _readers.FirstOrDefault(r => r.CanHandle(source.ComponentType));
 
-        // NewsAPI: siempre usa ReadManyAsync con secret
+        // Si no hay reader específico, usar HtmlSourceReader como fallback
+        if (reader == null)
+            reader = _readers.OfType<HtmlSourceReader>().FirstOrDefault()
+                ?? throw new InvalidOperationException(
+                    $"No hay lector para ComponentType='{source.ComponentType}'. " +
+                    "Válidos: json, newsapi, rss, xml, atom, feed, html, api.");
+
+        // NewsAPI: usa ReadManyAsync con secret
         if (reader is NewsApiSourceReader newsApi)
         {
             var secretValue = await _context.Secrets
@@ -42,11 +46,11 @@ public class SourceIngestionService : ISourceIngestionService
             return await newsApi.ReadManyAsync(source, secretValue, ct);
         }
 
-        // XML/RSS: siempre usa ReadManyAsync
+        // XML/RSS: ReadManyAsync
         if (reader is XmlSourceReader xml)
             return await xml.ReadManyAsync(source, ct);
 
-        // HTML/WebScraper/api: usa ReadManyAsync para soportar AdditionalUrls
+        // HTML/WebScraper/api: ReadManyAsync (soporta AdditionalUrls)
         if (reader is HtmlSourceReader html)
             return await html.ReadManyAsync(source, ct);
 

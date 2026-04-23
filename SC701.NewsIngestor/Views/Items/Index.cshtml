@@ -1,15 +1,11 @@
 ﻿@model IEnumerable<SC701.Models.SourceItem>
 @using System.Text.Json
+@using System.Net
 @using SC701.Models.DTOs
 
 @{
     ViewData["Title"] = "Noticias";
 
-    // ─────────────────────────────────────────────────────────────────
-    // HELPER: parsea el JSON de cada SourceItem al DTO estándar.
-    // Si el JSON no tiene el formato edu.univ.ingest.v1, devuelve null
-    // y la card cae al fallback genérico.
-    // ─────────────────────────────────────────────────────────────────
     StandardNewsItemDto? ParseItem(string json)
     {
         try
@@ -19,31 +15,43 @@
         }
         catch { return null; }
     }
+
+    // Limpia HTML entities y tags del texto para mostrar en cards
+    string CleanText(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return "";
+        // Decodificar HTML entities (&lt;p&gt; → <p>)
+        s = WebUtility.HtmlDecode(s);
+        // Strip HTML tags
+        s = System.Text.RegularExpressions.Regex.Replace(s, "<[^>]+>", " ");
+        // Colapsar espacios
+        s = System.Text.RegularExpressions.Regex.Replace(s.Trim(), @"\s+", " ");
+        return s;
+    }
+
+    var categories = Model
+        .Select(i => ParseItem(i.Json)?.Normalized?.Category?.Primary)
+        .Where(c => !string.IsNullOrWhiteSpace(c))
+        .Distinct()
+        .OrderBy(c => c)
+        .ToList();
 }
 
-<!-- ══════════════════════════════════════════════════════════
-     PAGE HEADER
-     ══════════════════════════════════════════════════════════ -->
+<!-- PAGE HEADER -->
 <div class="page-header">
     <div>
         <h1 class="page-title">📰 Noticias</h1>
-        <p class="text-muted mb-0" style="font-size: 0.95rem;">
-            Noticias guardadas en el sistema
-        </p>
+        <p class="text-muted mb-0" style="font-size: 0.95rem;">Noticias guardadas en el sistema</p>
     </div>
     <div class="d-flex gap-2 align-items-center">
         <span class="badge badge-primary-custom" style="font-size: 1rem; padding: 0.6rem 1.2rem;">
             @Model.Count() @(Model.Count() == 1 ? "noticia" : "noticias")
         </span>
-        <a asp-action="Upload" class="btn btn-primary-custom">
-            📤 Importar JSON
-        </a>
+        <a asp-action="Upload" class="btn btn-primary-custom">📤 Importar JSON</a>
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════
-     ALERTS
-     ══════════════════════════════════════════════════════════ -->
+<!-- ALERTS -->
 @if (TempData["SuccessMessage"] != null)
 {
     <div class="alert alert-success alert-dismissible fade show mb-4">
@@ -59,9 +67,6 @@
     </div>
 }
 
-<!-- ══════════════════════════════════════════════════════════
-     EMPTY STATE
-     ══════════════════════════════════════════════════════════ -->
 @if (!Model.Any())
 {
     <div class="text-center py-5">
@@ -69,66 +74,72 @@
             <div class="card-body p-5">
                 <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
                 <h3 class="mb-3">No hay noticias guardadas aún</h3>
-                <p class="text-muted mb-4">
-                    Importá un archivo JSON para comenzar a ver noticias aquí.
-                </p>
-                <a asp-action="Upload" class="btn btn-primary-custom">
-                    📤 Importar JSON
-                </a>
+                <p class="text-muted mb-4">Importá un archivo JSON para comenzar a ver noticias aquí.</p>
+                <a asp-action="Upload" class="btn btn-primary-custom">📤 Importar JSON</a>
             </div>
         </div>
     </div>
 }
 else
 {
-    // ══════════════════════════════════════════════════════
-    // TODO (para el desarrollador de UI):
-    // ──────────────────────────────────────────────────────
-    // Acá van las cards de noticias. Cada card representa
-    // un SourceItem ya parseado al formato estándar.
-    //
-    // Datos disponibles por card (ver variable dto):
-    //   dto.Normalized.Title       → título de la noticia
-    //   dto.Normalized.Summary     → resumen corto
-    //   dto.Normalized.Content     → contenido completo
-    //   dto.Normalized.PublishedAt → fecha de publicación
-    //   dto.Normalized.Author      → autor (puede ser null)
-    //   dto.Normalized.Url         → URL original (puede ser null)
-    //   dto.Normalized.Language    → idioma ("es", "en", etc.)
-    //   dto.Normalized.Category?.Primary → categoría principal
-    //   dto.Source.Name            → nombre de la fuente
-    //   dto.Source.Type            → tipo ("api", "feed", "html")
-    //   item.Id                    → ID del SourceItem
-    //   item.CreatedAt             → fecha en que se guardó
-    //
-    // Interacciones requeridas:
-    //   - Clic en la card → openNewsModal(item.Id)
-    //   - Botón descarga  → /api/NewsInterop/export/{item.Id}
-    //
-    // Sugerencia de layout: CSS Grid, 3 cols desktop / 2 tablet / 1 mobile
-    // ══════════════════════════════════════════════════════
+    <!-- BARRA DE BÚSQUEDA Y FILTROS -->
+    <div class="search-filter-bar mb-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">🔍</span>
+                    <input type="text" id="search-input" class="form-control border-start-0"
+                           placeholder="Buscar por título, fuente o autor…"
+                           oninput="filterCards()">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select id="category-filter" class="form-select" onchange="filterCards()">
+                    <option value="">📂 Todas las categorías</option>
+                    @foreach (var cat in categories)
+                    {
+                        <option value="@cat">@cat</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-secondary-custom w-100" onclick="clearFilters()">✖ Limpiar</button>
+            </div>
+        </div>
+    </div>
 
-    <div class="news-grid">
+    <div id="no-results" class="text-center py-5" style="display:none;">
+        <div style="font-size:3rem;">🔎</div>
+        <h5 class="mt-3 text-muted">No se encontraron noticias con esos criterios.</h5>
+        <button class="btn btn-secondary-custom mt-2" onclick="clearFilters()">Limpiar filtros</button>
+    </div>
+
+    <div class="news-grid" id="news-grid">
         @foreach (var item in Model)
         {
             var dto        = ParseItem(item.Json);
-            var title      = dto?.Normalized?.Title ?? $"Noticia #{item.Id}";
-            var rawSummary = dto?.Normalized?.Summary
-                             ?? dto?.Normalized?.Content?.Substring(0, Math.Min(dto.Normalized.Content.Length, 200))
-                             ?? "Sin descripción disponible.";
-            var summary    = rawSummary.Length > 160 ? rawSummary.Substring(0, 160) + "…" : rawSummary;
+            var title      = CleanText(dto?.Normalized?.Title) is { Length: > 0 } t ? t : $"Noticia #{item.Id}";
+            var rawSummary = CleanText(dto?.Normalized?.Summary)
+                          is { Length: > 0 } s ? s
+                          : CleanText(dto?.Normalized?.Content) is { Length: > 0 } c ? c
+                          : "Sin descripción disponible.";
+            var summary    = rawSummary.Length > 160 ? rawSummary[..160] + "…" : rawSummary;
             var sourceName = dto?.Source?.Name ?? item.Source?.Name ?? "Fuente desconocida";
             var pubDate    = dto?.Normalized?.PublishedAt ?? item.CreatedAt;
-            var author     = dto?.Normalized?.Author;
-            var category   = dto?.Normalized?.Category?.Primary;
+            var author     = CleanText(dto?.Normalized?.Author);
+            var category   = dto?.Normalized?.Category?.Primary ?? "";
 
-            <div class="news-card" onclick="openNewsModal(@item.Id)">
+            <div class="news-card"
+                 onclick="openNewsModal(@item.Id)"
+                 data-title="@title.ToLower()"
+                 data-source="@sourceName.ToLower()"
+                 data-author="@author.ToLower()"
+                 data-category="@category">
 
-                <!-- Cabecera -->
                 <div class="news-card-header">
                     <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
                         <span class="source-badge" title="@sourceName">
-                            📡 @(sourceName.Length > 22 ? sourceName.Substring(0, 22) + "…" : sourceName)
+                            📡 @(sourceName.Length > 22 ? sourceName[..22] + "…" : sourceName)
                         </span>
                         @if (!string.IsNullOrEmpty(category))
                         {
@@ -138,12 +149,10 @@ else
                     <h3 class="news-title">@title</h3>
                 </div>
 
-                <!-- Cuerpo -->
                 <div class="news-card-body">
                     <p class="news-summary">@summary</p>
                 </div>
 
-                <!-- Footer -->
                 <div class="news-card-footer">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="news-meta">
@@ -153,68 +162,38 @@ else
                             }
                             <span class="meta-date">📅 @pubDate.ToString("dd MMM yyyy")</span>
                         </div>
-                        <!-- AGREGADO: botón descarga + delete para Admin -->
                         <div class="d-flex gap-1 align-items-center">
                             <a href="/api/NewsInterop/export/@item.Id"
-                               class="btn-icon-sm"
-                               download
-                               title="Descargar JSON"
-                               onclick="event.stopPropagation()">
-                                📥
-                            </a>
+                               class="btn-icon-sm" download title="Descargar JSON"
+                               onclick="event.stopPropagation()">📥</a>
                             @if (User.IsInRole("Admin"))
                             {
                                 <form asp-action="Delete" asp-route-id="@item.Id" method="post"
                                       class="d-inline"
                                       onsubmit="event.stopPropagation(); return confirm('¿Eliminar esta noticia?')">
                                     @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn-icon-sm btn-icon-danger"
-                                            title="Eliminar noticia">
-                                        🗑
-                                    </button>
+                                    <button type="submit" class="btn-icon-sm btn-icon-danger" title="Eliminar">🗑</button>
                                 </form>
                             }
                         </div>
                     </div>
                 </div>
-
             </div>
         }
     </div>
 
     <div class="mt-4 text-center">
         <p class="text-muted">
-            Mostrando <strong style="color: var(--primary);">@Model.Count()</strong>
-            @(Model.Count() == 1 ? "noticia guardada" : "noticias guardadas")
+            Mostrando <strong style="color: var(--primary);" id="visible-count">@Model.Count()</strong>
+            de <strong>@Model.Count()</strong> @(Model.Count() == 1 ? "noticia guardada" : "noticias guardadas")
         </p>
     </div>
 }
 
-<!-- ══════════════════════════════════════════════════════════
-     MODAL DE DETALLE
-     ──────────────────────────────────────────────────────────
-     TODO (para el desarrollador de UI):
-     Este modal se abre con openNewsModal(id) al clickear una card.
-     El JS ya hace el fetch y llena los IDs de abajo automáticamente.
-
-     IDs disponibles para personalizar visualmente:
-       #modal-title         → título de la noticia
-       #modal-source        → nombre + ícono de fuente
-       #modal-date          → fecha publicación (ya formateada)
-       #modal-author        → autor — tiene clase d-none si es null
-       #modal-category      → badge categoría — tiene clase d-none si es null
-       #modal-summary       → párrafo de resumen (en blockquote azul)
-       #modal-content       → cuerpo completo del artículo
-       #modal-article-link  → botón "Ver artículo original" — d-none si no hay URL
-       #modal-download-link → botón descarga JSON
-
-     El endpoint que llama es: GET /api/SourceItems/{id}/detail
-     (ver SourceItemController.cs → GetDetail)
-     ══════════════════════════════════════════════════════════ -->
+<!-- MODAL DE DETALLE -->
 <div class="modal fade" id="newsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content modal-news-content">
-
             <div class="modal-header modal-news-header">
                 <div class="w-100">
                     <div class="d-flex align-items-center gap-2 mb-2">
@@ -225,7 +204,6 @@ else
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-
             <div class="modal-body modal-news-body">
                 <div class="modal-news-meta mb-3">
                     <span id="modal-date" class="meta-date"></span>
@@ -233,33 +211,35 @@ else
                 </div>
                 <div class="modal-news-summary" id="modal-summary"></div>
                 <hr style="border-color: var(--gray-200); margin: 1.5rem 0;" />
-                <div class="modal-news-content-text" id="modal-content">
-                    <!-- contenido completo del artículo va acá -->
-                </div>
+                <div class="modal-news-content-text" id="modal-content"></div>
             </div>
-
             <div class="modal-footer modal-news-footer">
-                <a id="modal-article-link" href="#" target="_blank"
-                   class="btn btn-secondary-custom btn-sm d-none">
+                <a id="modal-article-link" href="#" target="_blank" class="btn btn-secondary-custom btn-sm d-none">
                     🔗 Ver artículo original
                 </a>
-                <a id="modal-download-link" href="#" download
-                   class="btn btn-primary-custom btn-sm">
+                <a id="modal-download-link" href="#" download class="btn btn-primary-custom btn-sm">
                     📥 Descargar JSON
                 </a>
-                <button type="button" class="btn btn-secondary-custom btn-sm"
-                        data-bs-dismiss="modal">
-                    Cerrar
-                </button>
+                <button type="button" class="btn btn-secondary-custom btn-sm" data-bs-dismiss="modal">Cerrar</button>
             </div>
-
         </div>
     </div>
 </div>
 
-
 @section Styles {
 <style>
+.search-filter-bar {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.5rem;
+}
+.search-filter-bar .input-group-text { border-radius: var(--radius) 0 0 var(--radius); color: var(--gray-500); }
+.search-filter-bar .form-control,
+.search-filter-bar .form-select { border-color: var(--gray-200); border-radius: var(--radius); font-size: 0.9rem; }
+.search-filter-bar .form-control:focus,
+.search-filter-bar .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+
 .news-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -279,67 +259,40 @@ else
     transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     overflow: hidden;
 }
-.news-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--primary-light);
-}
+.news-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--primary-light); }
+.news-card.hidden { display: none; }
+
 .news-card-header { padding: 1.25rem 1.25rem 0.75rem; }
 .news-card-body   { padding: 0 1.25rem; flex: 1; }
 .news-card-footer { padding: 0.85rem 1.25rem; border-top: 1px solid var(--gray-100); margin-top: auto; }
 
 .source-badge {
-    background: var(--gray-100);
-    color: var(--gray-700);
-    padding: 0.2rem 0.65rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 180px;
+    background: var(--gray-100); color: var(--gray-700);
+    padding: 0.2rem 0.65rem; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
 }
 .category-badge {
-    background: #EEF2FF;
-    color: #4338CA;
-    padding: 0.2rem 0.65rem;
-    border-radius: 999px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    background: #EEF2FF; color: #4338CA;
+    padding: 0.2rem 0.65rem; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
 }
 .news-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    line-height: 1.45;
-    margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    font-size: 1rem; font-weight: 700; color: var(--gray-900); line-height: 1.45; margin: 0;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .news-summary { font-size: 0.875rem; color: var(--gray-600); line-height: 1.6; margin: 0; }
 .meta-date, .meta-author { font-size: 0.78rem; color: var(--gray-600); }
 
 .btn-icon-sm {
-    background: var(--gray-100);
-    border: none;
-    border-radius: var(--radius);
-    padding: 0.3rem 0.5rem;
-    font-size: 0.9rem;
-    cursor: pointer;
-    text-decoration: none;
-    transition: background 0.15s;
-    display: inline-flex;
-    align-items: center;
+    background: var(--gray-100); border: none; border-radius: var(--radius);
+    padding: 0.3rem 0.5rem; font-size: 0.9rem; cursor: pointer;
+    text-decoration: none; transition: background 0.15s; display: inline-flex; align-items: center;
 }
-.btn-icon-sm:hover      { background: var(--gray-200); }
-.btn-icon-danger:hover  { background: #FEE2E2; }
+.btn-icon-sm:hover     { background: var(--gray-200); }
+.btn-icon-danger:hover { background: #FEE2E2; }
 
-/* Modal */
 .modal-news-content  { border-radius: var(--radius-lg); overflow: hidden; }
 .modal-news-header   { background: white; border-bottom: 1px solid var(--gray-200); padding: 1.5rem; align-items: flex-start; }
 .modal-news-title    { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); line-height: 1.4; margin: 0; }
@@ -347,44 +300,70 @@ else
 .modal-news-footer   { background: var(--gray-50); border-top: 1px solid var(--gray-200); gap: 0.5rem; }
 .modal-news-meta     { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
 .modal-news-summary  {
-    background: var(--gray-50);
-    border-left: 3px solid var(--primary);
-    padding: 1rem 1.25rem;
-    border-radius: 0 var(--radius) var(--radius) 0;
-    font-size: 0.95rem;
-    color: var(--gray-700);
-    line-height: 1.7;
-    font-style: italic;
+    background: var(--gray-50); border-left: 3px solid var(--primary);
+    padding: 1rem 1.25rem; border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 0.95rem; color: var(--gray-700); line-height: 1.7; font-style: italic;
 }
-.modal-news-content-text {
-    font-size: 0.95rem;
-    color: var(--gray-700);
-    line-height: 1.8;
-    white-space: pre-wrap;
-}
+.modal-news-content-text { font-size: 0.95rem; color: var(--gray-700); line-height: 1.8; }
 </style>
 }
 
 @section Scripts {
 <script>
-// ──────────────────────────────────────────────────────────────────────
-// openNewsModal(id)
-// Llama a GET /api/SourceItems/{id}/detail y llena el modal.
-//
-// TODO (para el desarrollador de UI):
-//   - data.content puede ser texto plano o HTML.
-//     Si es HTML: usar innerHTML en vez de textContent.
-//   - Podés animar la entrada del contenido con una clase CSS fade-in.
-//   - El spinner de carga ya está: pone "Cargando…" mientras espera.
-// ──────────────────────────────────────────────────────────────────────
+// Decodifica HTML entities (&lt;p&gt; → <p>) y luego stripea tags
+function decodeAndStrip(s) {
+    if (!s) return '';
+    const txt = document.createElement('textarea');
+    txt.innerHTML = s;
+    const decoded = txt.value;
+    return decoded.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// Para el modal: decodifica entities pero mantiene HTML real para renderizar
+function decodeHtml(s) {
+    if (!s) return '';
+    const txt = document.createElement('textarea');
+    txt.innerHTML = s;
+    return txt.value;
+}
+
+// ── FILTROS ──────────────────────────────────────────────────────────
+function filterCards() {
+    const search   = document.getElementById('search-input').value.toLowerCase().trim();
+    const category = document.getElementById('category-filter').value;
+    const cards    = document.querySelectorAll('#news-grid .news-card');
+    let visible    = 0;
+
+    cards.forEach(card => {
+        const matchSearch = !search
+            || card.dataset.title.includes(search)
+            || card.dataset.source.includes(search)
+            || card.dataset.author.includes(search);
+        const matchCat = !category || card.dataset.category === category;
+
+        if (matchSearch && matchCat) { card.classList.remove('hidden'); visible++; }
+        else card.classList.add('hidden');
+    });
+
+    document.getElementById('visible-count').textContent  = visible;
+    document.getElementById('no-results').style.display   = visible === 0 ? 'block' : 'none';
+    document.getElementById('news-grid').style.display    = visible === 0 ? 'none'  : 'grid';
+}
+
+function clearFilters() {
+    document.getElementById('search-input').value    = '';
+    document.getElementById('category-filter').value = '';
+    filterCards();
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────
 async function openNewsModal(id) {
     const modal = new bootstrap.Modal(document.getElementById('newsModal'));
 
-    // Reset
-    document.getElementById('modal-title').textContent   = 'Cargando…';
-    document.getElementById('modal-source').textContent  = '…';
-    document.getElementById('modal-summary').textContent = '';
-    document.getElementById('modal-content').textContent = '';
+    document.getElementById('modal-title').textContent  = 'Cargando…';
+    document.getElementById('modal-source').textContent = '…';
+    document.getElementById('modal-summary').innerHTML  = '';
+    document.getElementById('modal-content').innerHTML  = '';
     document.getElementById('modal-author').classList.add('d-none');
     document.getElementById('modal-category').classList.add('d-none');
     document.getElementById('modal-article-link').classList.add('d-none');
@@ -410,10 +389,9 @@ async function openNewsModal(id) {
         const authorEl = document.getElementById('modal-author');
         if (data.author) { authorEl.textContent = `✍️ ${data.author}`; authorEl.classList.remove('d-none'); }
 
-        document.getElementById('modal-summary').textContent = data.summary || '(Sin resumen)';
-
-        // TODO: si data.content puede tener HTML, cambiar a innerHTML
-        document.getElementById('modal-content').textContent = data.content || '(Sin contenido disponible)';
+        // decodeHtml primero para convertir &lt;p&gt; → <p>, luego innerHTML lo renderiza
+        document.getElementById('modal-summary').innerHTML = decodeHtml(data.summary || '(Sin resumen)');
+        document.getElementById('modal-content').innerHTML = decodeHtml(data.content || '(Sin contenido disponible)');
 
         const linkEl = document.getElementById('modal-article-link');
         if (data.articleUrl) { linkEl.href = data.articleUrl; linkEl.classList.remove('d-none'); }
@@ -421,10 +399,9 @@ async function openNewsModal(id) {
         document.getElementById('modal-download-link').href = `/api/NewsInterop/export/${data.itemId || id}`;
 
     } catch (err) {
-        document.getElementById('modal-title').textContent   = '❌ Error al cargar';
-        document.getElementById('modal-summary').textContent = err.message;
+        document.getElementById('modal-title').textContent  = '❌ Error al cargar';
+        document.getElementById('modal-summary').innerHTML  = err.message;
     }
 }
 </script>
 }
-

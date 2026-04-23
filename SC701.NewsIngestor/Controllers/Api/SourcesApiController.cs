@@ -5,6 +5,7 @@ using SC701.Data;
 using SC701.Models;
 using SC701.Models.DTOs;
 using SC701.NewsIngestor.Services.Ingestion;
+using System.Text.Json;
 
 namespace SC701.NewsIngestor.Controllers.Api;
 
@@ -33,7 +34,7 @@ public class SourcesApiController : ControllerBase
     }
 
     // GET: api/Sources/5
-    [HttpGet("{id:int}")]                          // ← :int resuelve el conflicto con {id}/preview
+    [HttpGet("{id:int}")]
     public async Task<ActionResult<Source>> GetSource(int id)
     {
         var source = await _context.Sources
@@ -48,7 +49,6 @@ public class SourcesApiController : ControllerBase
 
     // GET: api/Sources/5/preview
     [HttpGet("{id:int}/preview")]
-    //[Authorize]//
     public async Task<IActionResult> PreviewSource(int id)
     {
         var source = await _context.Sources.FindAsync(id);
@@ -71,12 +71,11 @@ public class SourcesApiController : ControllerBase
                 language = dto.Normalized?.Language,
                 sourceName = dto.Source?.Name,
                 sourceType = dto.Source?.Type,
-                rawJson = System.Text.Json.JsonSerializer.Serialize(dto,
-                    new System.Text.Json.JsonSerializerOptions
-                    {
-                        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
-                        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-                    })
+                rawJson = JsonSerializer.Serialize(dto, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+                })
             }).ToList();
 
             return Ok(new
@@ -105,15 +104,51 @@ public class SourcesApiController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.RawJson))
             return BadRequest(new { message = "rawJson es requerido" });
 
-        bool exists = await _context.SourceItems
+        // Extraer título y URL del JSON para detección de duplicados más robusta
+        string? title = null;
+        string? url = null;
+        string? normalizedId = null;
+
+        try
+        {
+            var dto = JsonSerializer.Deserialize<StandardNewsItemDto>(req.RawJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            title = dto?.Normalized?.Title?.Trim();
+            url = dto?.Normalized?.Url?.Trim();
+            normalizedId = dto?.Normalized?.Id ?? dto?.Normalized?.ExternalId;
+        }
+        catch { /* si no parsea, caemos al check por JSON exacto */ }
+
+        // Check 1: por NormalizedId si existe
+        if (!string.IsNullOrWhiteSpace(normalizedId))
+        {
+            var existsById = await _context.SourceItems
+                .AnyAsync(i => i.NormalizedId == normalizedId);
+            if (existsById)
+                return Conflict(new { message = "Esta noticia ya está guardada (ID duplicado)" });
+        }
+
+        // Check 2: por título + fuente (evita duplicados de Halo Waypoint sin ID)
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            var existsByTitle = await _context.SourceItems
+                .Where(i => i.SourceId == id)
+                .AnyAsync(i => i.Json.Contains(title));
+            if (existsByTitle)
+                return Conflict(new { message = $"Ya existe una noticia con el título \"{title}\"" });
+        }
+
+        // Check 3: fallback — JSON exacto
+        var existsExact = await _context.SourceItems
             .AnyAsync(i => i.SourceId == id && i.Json == req.RawJson);
-        if (exists)
+        if (existsExact)
             return Conflict(new { message = "Este item ya está guardado" });
 
         var item = new SourceItem
         {
             SourceId = id,
             Json = req.RawJson,
+            NormalizedId = normalizedId,
             CreatedAt = DateTime.UtcNow
         };
 

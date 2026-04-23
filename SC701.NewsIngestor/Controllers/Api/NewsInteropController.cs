@@ -28,8 +28,6 @@ namespace SC701.NewsIngestor.Controllers.Api
         /// <summary>
         /// Exporta un SourceItem en formato JSON estándar acordado (HU-25)
         /// </summary>
-        /// <param name="id">ID del SourceItem a exportar</param>
-        /// <returns>Archivo JSON descargable en formato edu.univ.ingest.v1</returns>
         [HttpGet("export/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -40,15 +38,11 @@ namespace SC701.NewsIngestor.Controllers.Api
                 .FirstOrDefaultAsync(i => i.Id == id);
 
             if (item == null)
-            {
                 return NotFound(new { message = $"No se encontró el item con ID {id}" });
-            }
 
             StandardNewsItemDto standardItem;
-
             try
             {
-                // Intentar deserializar si ya está en formato estándar
                 standardItem = JsonSerializer.Deserialize<StandardNewsItemDto>(
                     item.Json,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
@@ -56,11 +50,9 @@ namespace SC701.NewsIngestor.Controllers.Api
             }
             catch
             {
-                // Si no está en formato estándar, convertirlo
                 standardItem = ConvertToStandardFormat(item);
             }
 
-            // Actualizar exportedAt
             standardItem.ExportedAt = DateTime.UtcNow;
 
             var jsonOptions = new JsonSerializerOptions
@@ -70,112 +62,96 @@ namespace SC701.NewsIngestor.Controllers.Api
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             };
 
-            var jsonBytes = Encoding.UTF8.GetBytes(
-                JsonSerializer.Serialize(standardItem, jsonOptions)
-            );
-
-            return File(
-                jsonBytes,
-                "application/json",
-                $"news-item-{id}.json"
-            );
+            var jsonBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(standardItem, jsonOptions));
+            return File(jsonBytes, "application/json", $"news-item-{id}.json");
         }
 
         /// <summary>
         /// Importa un archivo JSON en formato estándar acordado (HU-26, HU-27, HU-28, HU-24)
-        /// HU-24: Solo usuarios autorizados pueden guardar
+        /// Modo flexible: acepta JSONs incompletos, rellena campos faltantes y avisa al usuario.
         /// </summary>
-        /// <param name="file">Archivo JSON en formato edu.univ.ingest.v1</param>
-        /// <returns>El SourceItem creado</returns>
         [HttpPost("import")]
-        [Authorize] // HU-24: Requiere autenticación
+        [Authorize]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ImportItem(IFormFile file)
         {
-            // Validaciones básicas del archivo
             if (file == null || file.Length == 0)
-            {
                 return BadRequest(new { message = "No se proporcionó ningún archivo" });
-            }
 
             if (!file.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            {
                 return BadRequest(new { message = "El archivo debe ser un JSON (.json)" });
-            }
 
-            if (file.Length > 10 * 1024 * 1024) // 10MB
-            {
+            if (file.Length > 10 * 1024 * 1024)
                 return BadRequest(new { message = "El archivo excede el tamaño máximo de 10MB" });
-            }
 
-            // Leer el contenido del archivo
             string jsonContent;
             using (var reader = new StreamReader(file.OpenReadStream()))
-            {
                 jsonContent = await reader.ReadToEndAsync();
-            }
 
-            // Deserializar el JSON
             StandardNewsItemDto? standardItem;
             try
             {
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-                standardItem = JsonSerializer.Deserialize<StandardNewsItemDto>(jsonContent, options);
+                standardItem = JsonSerializer.Deserialize<StandardNewsItemDto>(
+                    jsonContent,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                );
             }
             catch (JsonException ex)
             {
-                return BadRequest(new
-                {
-                    message = "El archivo JSON no es válido",
-                    error = ex.Message
-                });
+                return BadRequest(new { message = "El archivo JSON tiene sintaxis inválida", error = ex.Message });
             }
 
             if (standardItem == null)
-            {
                 return BadRequest(new { message = "El JSON deserializado es null" });
-            }
 
-            // HU-27: Validar el formato estándar
-            var validationErrors = ValidateStandardFormat(standardItem);
-            if (validationErrors.Any())
-            {
+            // ── HU-27: Validación flexible ──────────────────────────────────────
+            // Campos bloqueantes (sin estos no podemos hacer nada útil):
+            var blockingErrors = ValidateBlockingFields(standardItem);
+            if (blockingErrors.Any())
                 return BadRequest(new
                 {
-                    message = "El JSON no cumple con el formato estándar edu.univ.ingest.v1",
-                    errors = validationErrors
+                    message = "El JSON no puede importarse, faltan campos estructurales mínimos",
+                    errors = blockingErrors
                 });
-            }
 
-            // HU-28: Crear o buscar la Source automáticamente
+            // Campos que se pueden rellenar automáticamente:
+            var warnings = new List<string>();
+            AutoFillMissingFields(standardItem, warnings);
+
+            // ── HU-28: Crear o buscar la Source automáticamente ─────────────────
             var source = await GetOrCreateSource(standardItem.Source);
 
-            // HU-24: Extraer NormalizedId para validar duplicados
+            // ── HU-24: Verificar duplicados ─────────────────────────────────────
             var normalizedId = standardItem.Normalized?.Id ?? standardItem.Normalized?.ExternalId;
-            
-            // HU-24: Verificar duplicados
+
             if (!string.IsNullOrWhiteSpace(normalizedId))
             {
                 var existingItem = await _context.SourceItems
                     .FirstOrDefaultAsync(si => si.NormalizedId == normalizedId);
-                
+
                 if (existingItem != null)
-                {
                     return BadRequest(new
                     {
                         message = "Ya existe un item con el mismo ID normalizado",
                         normalizedId = normalizedId,
                         existingItemId = existingItem.Id
                     });
-                }
             }
 
-            // Serializar el item completo para almacenarlo
+            // Verificar duplicado por título si no hay NormalizedId
+            if (string.IsNullOrWhiteSpace(normalizedId) && !string.IsNullOrWhiteSpace(standardItem.Normalized?.Title))
+            {
+                var title = standardItem.Normalized.Title;
+                var existsByTitle = await _context.SourceItems
+                    .Where(i => i.SourceId == source.Id)
+                    .AnyAsync(i => i.Json.Contains(title));
+                if (existsByTitle)
+                    return BadRequest(new { message = $"Ya existe una noticia con el título \"{title}\"" });
+            }
+
+            // ── Serializar y guardar ─────────────────────────────────────────────
             var itemJson = JsonSerializer.Serialize(standardItem, new JsonSerializerOptions
             {
                 WriteIndented = false,
@@ -183,122 +159,187 @@ namespace SC701.NewsIngestor.Controllers.Api
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             });
 
-            // Crear el SourceItem
             var sourceItem = new SourceItem
             {
                 SourceId = source.Id,
                 Json = itemJson,
-                NormalizedId = normalizedId, // HU-24: Guardar ID normalizado
+                NormalizedId = normalizedId,
                 CreatedAt = DateTime.UtcNow
             };
 
             _context.SourceItems.Add(sourceItem);
             await _context.SaveChangesAsync();
 
+            // 201 con advertencias si hubo campos rellenados automáticamente
             return CreatedAtAction(
                 "GetSourceItem",
                 "SourceItemsApi",
                 new { id = sourceItem.Id },
                 new
                 {
-                    message = "Item importado exitosamente",
+                    message = warnings.Any()
+                        ? "Item importado con campos incompletos que fueron rellenados automáticamente"
+                        : "Item importado exitosamente",
                     id = sourceItem.Id,
                     sourceId = sourceItem.SourceId,
                     sourceName = source.Name,
-                    title = standardItem.Normalized.Title,
-                    schemaVersion = standardItem.SchemaVersion
+                    title = standardItem.Normalized!.Title,
+                    schemaVersion = standardItem.SchemaVersion,
+                    warnings = warnings.Any() ? warnings : null   // null si no hay, omitido en JSON
                 }
             );
         }
 
-        /// <summary>
-        /// Valida que el JSON cumpla con el formato estándar acordado
-        /// </summary>
-        private List<string> ValidateStandardFormat(StandardNewsItemDto item)
+        // ── VALIDACIÓN BLOQUEANTE ────────────────────────────────────────────────
+        // Solo falla si no hay forma de recuperarse (estructura mínima rota)
+        private static List<string> ValidateBlockingFields(StandardNewsItemDto item)
         {
             var errors = new List<string>();
 
-            // Validar schemaVersion
+            // schemaVersion debe existir y ser la correcta
             if (string.IsNullOrWhiteSpace(item.SchemaVersion))
-            {
                 errors.Add("El campo 'schemaVersion' es obligatorio");
-            }
             else if (item.SchemaVersion != "edu.univ.ingest.v1")
-            {
                 errors.Add($"schemaVersion debe ser 'edu.univ.ingest.v1', se recibió '{item.SchemaVersion}'");
-            }
 
-            // Validar source
+            // source y normalized deben existir como objetos
             if (item.Source == null)
-            {
-                errors.Add("El campo 'source' es obligatorio");
-            }
+                errors.Add("El bloque 'source' es obligatorio");
             else
             {
                 if (string.IsNullOrWhiteSpace(item.Source.Name))
                     errors.Add("El campo 'source.name' es obligatorio");
-
-                if (string.IsNullOrWhiteSpace(item.Source.Type))
-                    errors.Add("El campo 'source.type' es obligatorio");
-
                 if (string.IsNullOrWhiteSpace(item.Source.Url))
                     errors.Add("El campo 'source.url' es obligatorio");
             }
 
-            // Validar normalized
             if (item.Normalized == null)
-            {
-                errors.Add("El campo 'normalized' es obligatorio");
-            }
-            else
-            {
-                if (string.IsNullOrWhiteSpace(item.Normalized.Title))
-                    errors.Add("El campo 'normalized.title' es obligatorio");
-
-                if (string.IsNullOrWhiteSpace(item.Normalized.Content))
-                    errors.Add("El campo 'normalized.content' es obligatorio");
-
-                if (item.Normalized.PublishedAt == default)
-                    errors.Add("El campo 'normalized.publishedAt' es obligatorio y debe ser una fecha válida");
-            }
+                errors.Add("El bloque 'normalized' es obligatorio");
 
             return errors;
         }
 
-        /// <summary>
-        /// Obtiene una Source existente o crea una nueva basada en SourceDto
-        /// </summary>
+        // ── AUTO-FILL DE CAMPOS FALTANTES ────────────────────────────────────────
+        // Rellena campos opcionales/incompletos con valores de fallback y registra advertencias
+        private static void AutoFillMissingFields(StandardNewsItemDto item, List<string> warnings)
+        {
+            var n = item.Normalized!;
+
+            // source.type — fallback a "api"
+            if (string.IsNullOrWhiteSpace(item.Source.Type))
+            {
+                item.Source.Type = "api";
+                warnings.Add("'source.type' estaba vacío → se asignó 'api'");
+            }
+
+            // normalized.title — intentar extraer del raw si existe
+            if (string.IsNullOrWhiteSpace(n.Title))
+            {
+                var rawTitle = TryExtractFromRaw(item.Raw, "title", "Title", "name", "Name");
+                n.Title = rawTitle ?? item.Source.Name ?? "Sin título";
+                warnings.Add($"'normalized.title' estaba vacío → se rellenó con: \"{n.Title}\"");
+            }
+
+            // normalized.content — intentar extraer del raw (plot, description, content, body)
+            if (string.IsNullOrWhiteSpace(n.Content))
+            {
+                var rawContent = TryExtractFromRaw(item.Raw, "plot", "Plot", "description", "Description", "content", "Content", "body", "Body", "summary", "Summary");
+                n.Content = rawContent ?? n.Summary ?? n.Title ?? "Sin contenido";
+                warnings.Add($"'normalized.content' estaba vacío → se rellenó con contenido del bloque 'raw'");
+            }
+
+            // normalized.summary — usar content truncado si falta
+            if (string.IsNullOrWhiteSpace(n.Summary))
+            {
+                n.Summary = n.Content.Length > 220 ? n.Content[..220] + "..." : n.Content;
+                warnings.Add("'normalized.summary' estaba vacío → se generó desde 'content'");
+            }
+
+            // normalized.publishedAt — usar fecha actual si falta o es default
+            if (n.PublishedAt == default || n.PublishedAt == DateTime.MinValue)
+            {
+                // Intentar extraer del raw (released, date, year)
+                var rawDate = TryExtractFromRaw(item.Raw, "released", "Released", "date", "Date", "publishedAt", "PublishedAt");
+                if (rawDate != null && DateTime.TryParse(rawDate, out var parsedDate))
+                {
+                    n.PublishedAt = parsedDate.ToUniversalTime();
+                    warnings.Add($"'normalized.publishedAt' estaba vacío → se extrajo del raw: {n.PublishedAt:yyyy-MM-dd}");
+                }
+                else
+                {
+                    n.PublishedAt = DateTime.UtcNow;
+                    warnings.Add("'normalized.publishedAt' estaba vacío → se usó la fecha actual");
+                }
+            }
+
+            // normalized.language — fallback a "es"
+            if (string.IsNullOrWhiteSpace(n.Language))
+            {
+                n.Language = "es";
+                warnings.Add("'normalized.language' estaba vacío → se asignó 'es'");
+            }
+        }
+
+        // ── HELPER: extraer valor string del bloque Raw ──────────────────────────
+        private static string? TryExtractFromRaw(RawDataDto? raw, params string[] fieldNames)
+        {
+            if (raw?.Data == null) return null;
+
+            try
+            {
+                var dataJson = JsonSerializer.Serialize(raw.Data);
+                using var doc = JsonDocument.Parse(dataJson);
+                return SearchJsonElement(doc.RootElement, fieldNames);
+            }
+            catch { return null; }
+        }
+
+        private static string? SearchJsonElement(JsonElement element, string[] fieldNames)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var fieldName in fieldNames)
+                {
+                    if (element.TryGetProperty(fieldName, out var prop) && prop.ValueKind == JsonValueKind.String)
+                    {
+                        var val = prop.GetString();
+                        if (!string.IsNullOrWhiteSpace(val)) return val;
+                    }
+                }
+                // Buscar recursivamente en objetos anidados
+                foreach (var prop in element.EnumerateObject())
+                {
+                    var result = SearchJsonElement(prop.Value, fieldNames);
+                    if (result != null) return result;
+                }
+            }
+            return null;
+        }
+
+        // ── HU-28: Obtener o crear Source ────────────────────────────────────────
         private async Task<Source> GetOrCreateSource(SourceDto sourceDto)
         {
-            // Buscar por URL (es única)
             var existingSource = await _context.Sources
                 .FirstOrDefaultAsync(s => s.Url == sourceDto.Url);
 
-            if (existingSource != null)
-            {
-                return existingSource;
-            }
+            if (existingSource != null) return existingSource;
 
-            // Crear nueva Source
             var newSource = new Source
             {
                 Url = sourceDto.Url,
                 Name = sourceDto.Name,
-                Description = $"Fuente importada automáticamente desde JSON estándar",
+                Description = "Fuente importada automáticamente desde JSON estándar",
                 ComponentType = sourceDto.Type,
                 RequiresSecret = sourceDto.RequiresSecret
             };
 
             _context.Sources.Add(newSource);
             await _context.SaveChangesAsync();
-
             return newSource;
         }
 
-        /// <summary>
-        /// Convierte un SourceItem antiguo al formato estándar
-        /// </summary>
-        private StandardNewsItemDto ConvertToStandardFormat(SourceItem item)
+        // ── Convertir SourceItem antiguo al formato estándar ─────────────────────
+        private static StandardNewsItemDto ConvertToStandardFormat(SourceItem item)
         {
             return new StandardNewsItemDto
             {
@@ -315,21 +356,14 @@ namespace SC701.NewsIngestor.Controllers.Api
                 Normalized = new NormalizedContentDto
                 {
                     Id = item.Id.ToString(),
-                    ExternalId = null,
                     Title = item.Source?.Name ?? "Sin título",
                     Content = item.Json,
                     Summary = "Contenido convertido desde formato antiguo",
                     PublishedAt = item.CreatedAt,
                     Url = item.Source?.Url,
-                    Author = null,
-                    Language = "es",
-                    Category = null
+                    Language = "es"
                 },
-                Raw = new RawDataDto
-                {
-                    Format = "json",
-                    Data = new { original = item.Json }
-                }
+                Raw = new RawDataDto { Format = "json", Data = new { original = item.Json } }
             };
         }
     }
