@@ -12,8 +12,8 @@ using SC701.Data;
 namespace SC701.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260217010354_Inicial")]
-    partial class Inicial
+    [Migration("20260404000455_InitialClean")]
+    partial class InitialClean
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

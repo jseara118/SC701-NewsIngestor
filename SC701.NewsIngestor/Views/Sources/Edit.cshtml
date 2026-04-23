@@ -1,34 +1,34 @@
-﻿@model SC701.Models.Source
-
+@model SC701.Models.Source
 @{
-    ViewData["Title"] = "Crear Fuente";
+    ViewData["Title"] = "Editar Fuente";
     var categories = new[] { "NACIONAL", "INTERNACIONAL", "DEPORTES", "TECNOLOGÍA", "ENTRETENIMIENTO", "CIENCIA", "ECONOMÍA", "POLÍTICA", "CULTURA", "GAMING", "BUENAS NOTICIAS" };
 }
 
 <div class="page-header">
-    <h1 class="page-title">➕ Crear Nueva Fuente</h1>
-    <a asp-action="Index" class="btn btn-secondary-custom">← Volver al Listado</a>
+    <h1 class="page-title">✏️ Editar Fuente</h1>
+    <a asp-action="Index" class="btn btn-secondary-custom">← Volver</a>
 </div>
 
 <div class="row">
     <div class="col-lg-8">
         <div class="card-custom">
-            <div class="card-header">📝 Formulario de Fuente</div>
+            <div class="card-header">📝 Modificar datos de la fuente</div>
             <div class="card-body">
-                <form asp-action="Create">
+                <form asp-action="Edit">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
                     <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
                     <div class="mb-4">
                         <label asp-for="Name" class="form-label-custom"></label>
-                        <input asp-for="Name" class="form-control form-control-custom" placeholder="Ej: BBC News RSS" />
+                        <input asp-for="Name" class="form-control form-control-custom" />
                         <span asp-validation-for="Name" class="text-danger"></span>
                     </div>
 
                     <div class="mb-4">
                         <label asp-for="Url" class="form-label-custom"></label>
-                        <input asp-for="Url" class="form-control form-control-custom" placeholder="https://ejemplo.com/rss" />
+                        <input asp-for="Url" class="form-control form-control-custom" />
                         <span asp-validation-for="Url" class="text-danger"></span>
-                        <div class="form-text">🔗 Debe ser una URL válida (incluye https://)</div>
                     </div>
 
                     <div class="mb-4">
@@ -49,7 +49,7 @@
                             <option value="">-- Sin categoría por defecto --</option>
                             @foreach (var cat in categories)
                             {
-                                <option value="@cat">@cat</option>
+                                <option value="@cat" selected="@(Model.DefaultCategory == cat ? "selected" : null)">@cat</option>
                             }
                         </select>
                         <small class="text-muted">🏷️ Se aplica a noticias que no traigan categoría propia.</small>
@@ -57,64 +57,30 @@
 
                     <div class="mb-4">
                         <label asp-for="Description" class="form-label-custom"></label>
-                        <textarea asp-for="Description" class="form-control form-control-custom" rows="3"
-                                  placeholder="Descripción opcional de la fuente..."></textarea>
-                        <span asp-validation-for="Description" class="text-danger"></span>
+                        <textarea asp-for="Description" class="form-control form-control-custom" rows="3"></textarea>
                     </div>
 
-                    <div class="mb-4" id="additional-urls-section" style="display:none;">
+                    <div class="mb-4" id="additional-urls-section">
                         <label asp-for="AdditionalUrls" class="form-label-custom"></label>
                         <textarea asp-for="AdditionalUrls" class="form-control form-control-custom" rows="5"
                                   placeholder="Una URL por línea. Ejemplo:&#10;https://sitio.com/noticia-1&#10;https://sitio.com/noticia-2"></textarea>
-                        <small class="text-muted">🕷️ Agregá una URL por línea para ingestar múltiples artículos del mismo sitio.</small>
+                        <small class="text-muted">🕷️ Solo para tipo <strong>Web Scraper</strong> — agregá una URL por línea para ingestar múltiples artículos del mismo sitio.</small>
                     </div>
 
                     <div class="mb-4">
                         <div class="form-check">
-                            <input asp-for="RequiresSecret" class="form-check-input" type="checkbox" style="cursor:pointer;" />
-                            <label asp-for="RequiresSecret" class="form-check-label form-label-custom" style="cursor:pointer;"></label>
+                            <input asp-for="RequiresSecret" class="form-check-input" type="checkbox" />
+                            <label asp-for="RequiresSecret" class="form-check-label form-label-custom"></label>
                         </div>
-                        <div class="form-text">🔐 Marca si esta fuente requiere una API key o credenciales</div>
                     </div>
 
                     <hr class="divider" />
 
                     <div class="d-flex gap-3">
-                        <button type="submit" class="btn btn-primary-custom">💾 Guardar Fuente</button>
+                        <button type="submit" class="btn btn-primary-custom">💾 Guardar Cambios</button>
                         <a asp-action="Index" class="btn btn-secondary-custom">❌ Cancelar</a>
                     </div>
                 </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-4">
-        <div class="card-custom">
-            <div class="card-header">💡 Ayuda</div>
-            <div class="card-body">
-                <h6 class="fw-bold mb-3">Tipos de Componente:</h6>
-                <div class="mb-3">
-                    <span class="badge badge-primary-custom mb-2">📰 RSS</span>
-                    <p class="small mb-0">Fuentes RSS/Atom tradicionales para blogs y sitios de noticias.</p>
-                </div>
-                <div class="mb-3">
-                    <span class="badge badge-primary-custom mb-2">🗞️ NewsAPI</span>
-                    <p class="small mb-0">Conecta con NewsAPI.org para traer titulares en tiempo real. Requiere API key.</p>
-                </div>
-                <div class="mb-3">
-                    <span class="badge badge-primary-custom mb-2">🕷️ Web Scraper</span>
-                    <p class="small mb-0">Extracción directa desde sitios web. Soporta múltiples URLs por fuente.</p>
-                </div>
-                <div class="mb-0">
-                    <span class="badge badge-primary-custom mb-2">📋 JSON Feed</span>
-                    <p class="small mb-0">Feeds JSON personalizados o de servicios específicos.</p>
-                </div>
-            </div>
-        </div>
-        <div class="card-custom mt-3" style="background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%);">
-            <div class="card-body">
-                <h6 class="fw-bold mb-2">📌 Consejo</h6>
-                <p class="small mb-0">Asigná una categoría por defecto para que las noticias aparezcan correctamente en los filtros.</p>
             </div>
         </div>
     </div>

@@ -1,138 +1,284 @@
-﻿@@model SC701.Models.SourceItem
+﻿@model SC701.Models.SourceItem
+@using System.Text.Json
+@using SC701.Models.DTOs
 
 @{
-    ViewData["Title"] = $"Item #{Model.Id}";
+    ViewData["Title"] = $"Noticia #{Model.Id}";
+
+    // Parsear el JSON al DTO estándar para mostrar datos legibles
+    StandardNewsItemDto? dto = null;
+    try
+    {
+        dto = JsonSerializer.Deserialize<StandardNewsItemDto>(Model.Json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    }
+    catch { /* fallback a raw */ }
+
+    var title      = dto?.Normalized?.Title       ?? $"Noticia #{Model.Id}";
+    var summary    = dto?.Normalized?.Summary;
+    var content    = dto?.Normalized?.Content;
+    var author     = dto?.Normalized?.Author;
+    var pubDate    = dto?.Normalized?.PublishedAt ?? Model.CreatedAt;
+    var articleUrl = dto?.Normalized?.Url;
+    var category   = dto?.Normalized?.Category?.Primary;
+    var language   = dto?.Normalized?.Language ?? "es";
+    var sourceName = dto?.Source?.Name ?? Model.Source?.Name ?? "Fuente desconocida";
+    var sourceType = dto?.Source?.Type ?? Model.Source?.ComponentType ?? "—";
+    var sourceUrl  = dto?.Source?.Url  ?? Model.Source?.Url;
 }
 
+<!-- ══════════════════════════════════════════════════════════
+     PAGE HEADER
+     ══════════════════════════════════════════════════════════ -->
 <div class="page-header">
-    <h1 class="page-title">
-        🔍 Detalle del Item #@Model.Id
-    </h1>
-    <a asp-action="Index" class="btn btn-secondary-custom">
-        ← Volver al Listado
-    </a>
-</div>
-
-<div class="row">
-    <div class="col-lg-12">
-        <!-- Información General -->
-        <div class="card-custom mb-4">
-            <div class="card-header">
-                📊 Información General
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label-custom">ID del Item:</label>
-                        <div class="p-3" style="background: var(--gray-100); border-radius: var(--radius);">
-                            <strong style="color: var(--primary); font-size: 1.25rem;">#@Model.Id</strong>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label-custom">ID de Fuente:</label>
-                        <div class="p-3" style="background: var(--gray-100); border-radius: var(--radius);">
-                            <span class="badge badge-success-custom" style="font-size: 1rem;">@Model.SourceId</span>
-                        </div>
-                    </div>
-
-                    <div class="col-md-12 mb-3">
-                        <label class="form-label-custom">Fuente de Origen:</label>
-                        <div class="p-3" style="background: var(--gray-100); border-radius: var(--radius);">
-                            @if (Model.Source != null)
-                            {
-                                <div class="d-flex align-items-center gap-3">
-                                    <div>
-                                        <strong style="color: var(--gray-900); font-size: 1.1rem;">
-                                            @Model.Source.Name
-                                        </strong>
-                                        <br />
-                                        <small style="color: var(--gray-600);">
-                                            <a href="@Model.Source.Url" target="_blank" class="text-decoration-none">
-                                                🔗 @Model.Source.Url
-                                            </a>
-                                        </small>
-                                    </div>
-                                    <div class="ms-auto">
-                                        <span class="badge badge-primary-custom">@Model.Source.ComponentType</span>
-                                    </div>
-                                </div>
-                            }
-                            else
-                            {
-                                <span class="text-muted">❌ Fuente no encontrada</span>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="col-md-12">
-                        <label class="form-label-custom">Fecha de Creación:</label>
-                        <div class="p-3" style="background: var(--gray-100); border-radius: var(--radius);">
-                            <div class="d-flex align-items-center gap-3">
-                                <div>
-                                    <strong style="color: var(--gray-900);">
-                                        📅 @Model.CreatedAt.ToString("dddd, dd MMMM yyyy")
-                                    </strong>
-                                    <br />
-                                    <small style="color: var(--gray-600);">
-                                        🕒 @Model.CreatedAt.ToString("HH:mm:ss")
-                                    </small>
-                                </div>
-                                <div class="ms-auto">
-                                    <span class="badge badge-warning-custom">
-                                        @Model.CreatedAt.ToString("o")
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Datos JSON -->
-        <div class="card-custom card-success mb-4">
-            <div class="card-header">
-                📄 Datos JSON (Raw Data)
-            </div>
-            <div class="card-body">
-                <div style="background: #1E293B; border-radius: var(--radius); overflow: hidden;">
-                    <pre class="p-4 mb-0" style="color: #E2E8F0; max-height: 600px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6;"><code>@Model.Json</code></pre>
-                </div>
-                <div class="mt-3 d-flex gap-2 justify-content-end">
-                    <button class="btn btn-secondary-custom btn-sm" onclick="copyToClipboard()">
-                        📋 Copiar JSON
-                    </button>
-                    <!-- HU-25: Botón para descargar en formato estándar -->
-                    <a href="/api/NewsInterop/export/@Model.Id"
-                       class="btn btn-primary-custom btn-sm"
-                       download>
-                        📥 Descargar JSON Estándar
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Botones de Acción -->
-        <div class="d-flex gap-3 justify-content-center">
-            <a asp-action="Index" class="btn btn-secondary-custom">
-                ← Volver al Listado
-            </a>
-        </div>
+    <div>
+        <a asp-action="Index" class="btn btn-secondary-custom btn-sm mb-2">
+            ← Volver a Noticias
+        </a>
+        <h1 class="page-title">📰 Detalle de Noticia</h1>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/api/NewsInterop/export/@Model.Id"
+           class="btn btn-primary-custom btn-sm"
+           download>
+            📥 Descargar JSON
+        </a>
     </div>
 </div>
 
-@section Scripts {
-    <script>
-        function copyToClipboard() {
-            const jsonElement = document.querySelector('pre code');
-            const jsonText = jsonElement.textContent;
+<!-- ══════════════════════════════════════════════════════════
+     ARTICLE LAYOUT
+     ──────────────────────────────────────────────────────────
+     TODO (para el desarrollador de UI):
+     Esta es la vista de detalle completo (página dedicada).
+     Usá las variables de arriba para construir el layout.
+     Variables disponibles:
+       title, summary, content, author, pubDate, articleUrl,
+       category, language, sourceName, sourceType, sourceUrl,
+       Model.Id, Model.CreatedAt
 
-            navigator.clipboard.writeText(jsonText).then(function() {
-                alert('✅ JSON copiado al portapapeles');
-            }, function(err) {
-                alert('❌ Error al copiar: ' + err);
-            });
-        }
-    </script>
+     Sugerencia de estructura:
+       - Columna izquierda (~70%): artículo completo
+       - Columna derecha (~30%): metadata (fuente, fecha, tags)
+     ══════════════════════════════════════════════════════════ -->
+
+<div class="row g-4">
+
+    <!-- ── Artículo principal ── -->
+    <div class="col-lg-8">
+        <article class="article-card">
+
+            <!-- Cabecera del artículo -->
+            <div class="article-header">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="source-badge">📡 @sourceName</span>
+                    @if (!string.IsNullOrEmpty(category))
+                    {
+                        <span class="category-badge">@category</span>
+                    }
+                    <span class="lang-badge">🌐 @language.ToUpper()</span>
+                </div>
+
+                <h1 class="article-title">@title</h1>
+
+                <div class="article-meta">
+                    <span class="meta-date">📅 @pubDate.ToString("dddd, dd MMMM yyyy")</span>
+                    @if (!string.IsNullOrEmpty(author))
+                    {
+                        <span class="meta-author">✍️ @author</span>
+                    }
+                </div>
+            </div>
+
+            <!-- Resumen destacado -->
+            @if (!string.IsNullOrEmpty(summary))
+            {
+                <div class="article-summary">
+                    @summary
+                </div>
+            }
+
+            <hr class="article-divider" />
+
+            <!-- Contenido completo -->
+            <div class="article-content">
+                @if (!string.IsNullOrEmpty(content))
+                {
+                    <!-- TODO: si el contenido puede ser HTML, usar @Html.Raw(content) -->
+                    @content
+                }
+                else
+                {
+                    <p class="text-muted fst-italic">Sin contenido disponible para esta noticia.</p>
+                }
+            </div>
+
+            <!-- Link al artículo original -->
+            @if (!string.IsNullOrEmpty(articleUrl))
+            {
+                <div class="article-original-link">
+                    <a href="@articleUrl" target="_blank" class="btn btn-secondary-custom btn-sm">
+                        🔗 Ver artículo original
+                    </a>
+                </div>
+            }
+
+        </article>
+    </div>
+
+    <!-- ── Sidebar de metadata ── -->
+    <div class="col-lg-4">
+
+        <!-- Card: Fuente -->
+        <div class="sidebar-card mb-3">
+            <div class="sidebar-card-title">📡 Fuente</div>
+            <div class="sidebar-card-body">
+                <div class="fw-bold mb-1">@sourceName</div>
+                <span class="badge badge-primary-custom" style="font-size: 0.75rem;">@sourceType</span>
+                @if (!string.IsNullOrEmpty(sourceUrl))
+                {
+                    <div class="mt-2">
+                        <a href="@sourceUrl" target="_blank" class="text-decoration-none"
+                           style="font-size: 0.82rem; color: var(--gray-600);">
+                            🔗 @(sourceUrl.Length > 40 ? sourceUrl.Substring(0, 40) + "…" : sourceUrl)
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Card: Fechas -->
+        <div class="sidebar-card mb-3">
+            <div class="sidebar-card-title">📅 Fechas</div>
+            <div class="sidebar-card-body">
+                <div class="sidebar-meta-row">
+                    <span class="sidebar-label">Publicado</span>
+                    <span class="sidebar-value">@pubDate.ToString("dd/MM/yyyy HH:mm")</span>
+                </div>
+                <div class="sidebar-meta-row">
+                    <span class="sidebar-label">Guardado</span>
+                    <span class="sidebar-value">@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card: Identificadores -->
+        <div class="sidebar-card mb-3">
+            <div class="sidebar-card-title">🔖 Datos técnicos</div>
+            <div class="sidebar-card-body">
+                <div class="sidebar-meta-row">
+                    <span class="sidebar-label">Item ID</span>
+                    <span class="sidebar-value">#@Model.Id</span>
+                </div>
+                <div class="sidebar-meta-row">
+                    <span class="sidebar-label">Source ID</span>
+                    <span class="sidebar-value">#@Model.SourceId</span>
+                </div>
+                <div class="sidebar-meta-row">
+                    <span class="sidebar-label">Schema</span>
+                    <span class="sidebar-value" style="font-size:0.75rem;">edu.univ.ingest.v1</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="d-flex flex-column gap-2">
+            <a href="/api/NewsInterop/export/@Model.Id"
+               class="btn btn-primary-custom"
+               download>
+                📥 Descargar JSON estándar
+            </a>
+            <a asp-action="Index" class="btn btn-secondary-custom">
+                ← Volver a Noticias
+            </a>
+        </div>
+
+        <!-- Raw JSON colapsable (para debug) -->
+        <div class="mt-3">
+            <details>
+                <summary style="cursor:pointer; color: var(--gray-600); font-size:0.85rem; user-select:none;">
+                    🛠 Ver JSON raw
+                </summary>
+                <div style="background:#1E293B; border-radius:var(--radius); margin-top:0.5rem; overflow:hidden;">
+                    <pre style="color:#E2E8F0; padding:1rem; font-size:0.78rem; max-height:300px; overflow-y:auto; margin:0;"><code>@Model.Json</code></pre>
+                </div>
+            </details>
+        </div>
+
+    </div>
+</div>
+
+
+@section Styles {
+<style>
+/* ── Artículo ── */
+.article-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+}
+.article-header  { margin-bottom: 1.5rem; }
+.article-title   { font-size: 1.6rem; font-weight: 700; color: var(--gray-900); line-height: 1.35; margin: 0.75rem 0; }
+.article-meta    { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: var(--gray-600); }
+.article-summary {
+    background: var(--gray-50);
+    border-left: 4px solid var(--primary);
+    padding: 1rem 1.5rem;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 1rem;
+    color: var(--gray-700);
+    line-height: 1.75;
+    font-style: italic;
+    margin-bottom: 1.5rem;
+}
+.article-divider { border-color: var(--gray-200); margin: 1.5rem 0; }
+.article-content {
+    font-size: 0.97rem;
+    color: var(--gray-700);
+    line-height: 1.85;
+    white-space: pre-wrap;
+}
+.article-original-link { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200); }
+
+/* ── Badges inline ── */
+.source-badge {
+    background: var(--gray-100); color: var(--gray-700);
+    padding: 0.2rem 0.65rem; border-radius: 999px;
+    font-size: 0.78rem; font-weight: 500;
+}
+.category-badge {
+    background: #EEF2FF; color: #4338CA;
+    padding: 0.2rem 0.65rem; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.lang-badge {
+    background: var(--gray-100); color: var(--gray-600);
+    padding: 0.2rem 0.65rem; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 500;
+}
+
+/* ── Sidebar ── */
+.sidebar-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+.sidebar-card-title {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0.65rem 1rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.sidebar-card-body  { padding: 1rem; }
+.sidebar-meta-row   { display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid var(--gray-100); }
+.sidebar-meta-row:last-child { border-bottom: none; }
+.sidebar-label      { font-size: 0.8rem; color: var(--gray-600); }
+.sidebar-value      { font-size: 0.85rem; font-weight: 600; color: var(--gray-900); }
+</style>
 }

@@ -1,54 +1,55 @@
 ﻿@model IEnumerable<SC701.Models.Source>
-
 @{
-    ViewData["Title"] = "Fuentes de Noticias";
+    ViewData["Title"] = "Fuentes";
 }
 
 <div class="page-header">
-    <h1 class="page-title">
-        📡 Fuentes de Noticias
-    </h1>
     <div>
-        <span class="badge badge-primary-custom" style="font-size: 1rem; padding: 0.6rem 1.2rem;">
-            Total: @Model.Count()
+        <h1 class="page-title">📡 Fuentes</h1>
+        <p class="text-muted mb-0" style="font-size:0.9rem;">
+            Configurá las fuentes y jalá noticias en vivo
+        </p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge badge-primary-custom" style="font-size:1rem; padding:0.6rem 1.2rem;">
+            @Model.Count() fuente(s)
         </span>
-        <a asp-action="Create" class="btn btn-primary-custom ms-3">
-            ➕ Crear Nueva Fuente
-        </a>
+        @if (User.IsInRole("Admin"))
+        {
+            <a asp-action="Create" class="btn btn-primary-custom">➕ Nueva Fuente</a>
+        }
     </div>
 </div>
 
 @if (TempData["SuccessMessage"] != null)
 {
-    <div class="alert alert-success-custom alert-dismissible fade show" role="alert">
-        <strong>✅ ¡Éxito!</strong> @TempData["SuccessMessage"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <div class="alert alert-success alert-dismissible fade show">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
-
 @if (TempData["ErrorMessage"] != null)
 {
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <strong>❌ Error:</strong> @TempData["ErrorMessage"]
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["ErrorMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
 
-
 @if (!Model.Any())
 {
     <div class="text-center py-5">
-        <div class="card-custom" style="max-width: 600px; margin: 0 auto;">
+        <div class="card-custom" style="max-width:600px; margin:0 auto;">
             <div class="card-body p-5">
-                <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
-                <h3 class="mb-3">No hay fuentes registradas aún</h3>
+                <div style="font-size:4rem; margin-bottom:1rem;">📭</div>
+                <h3 class="mb-3">No hay fuentes registradas</h3>
                 <p class="text-muted mb-4">
-                    Comienza agregando tu primera fuente de noticias. Puedes configurar fuentes RSS, APIs,
-                    web scrapers o feeds JSON para comenzar a ingerir contenido.
+                    Agregá una fuente RSS, NewsAPI o JSON para empezar a ingestar noticias.
                 </p>
-                <a asp-action="Create" class="btn btn-primary-custom">
-                    ➕ Crear Primera Fuente
-                </a>
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-action="Create" class="btn btn-primary-custom">➕ Crear Primera Fuente</a>
+                }
             </div>
         </div>
     </div>
@@ -59,116 +60,398 @@ else
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
-                    <th style="width: 5%;">ID</th>
-                    <th style="width: 20%;">Nombre</th>
-                    <th style="width: 25%;">URL</th>
-                    <th style="width: 12%;">Tipo</th>
-                    <th style="width: 10%;">Secret</th>
-                    <th style="width: 18%;">Descripción</th>
-                    <th style="width: 10%;">Items</th>
-
-                    <!-- comentario -->
-                    <th style="width: 10%;">Acciones</th>
-                    <!-- comentario -->
-
+                    <th style="width:5%">ID</th>
+                    <th style="width:20%">Nombre</th>
+                    <th style="width:25%">URL</th>
+                    <th style="width:10%">Tipo</th>
+                    <th style="width:8%">Secret</th>
+                    <th style="width:7%">Items</th>
+                    <th style="width:25%">Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var item in Model)
+                @foreach (var source in Model)
                 {
                     <tr class="hover-lift">
+                        <td><strong style="color:var(--primary);">#@source.Id</strong></td>
+                        <td><strong>@source.Name</strong></td>
                         <td>
-                            <strong style="color: var(--primary);">#@item.Id</strong>
-                        </td>
-                        <td>
-                            <strong style="color: var(--gray-900);">@item.Name</strong>
-                        </td>
-                        <td>
-                            <a href="@item.Url" target="_blank" class="text-decoration-none"
-                               style="color: var(--gray-600); font-size: 0.9rem;"
-                               title="@item.Url">
-                                @(item.Url.Length > 35 ? item.Url.Substring(0, 35) + "..." : item.Url)
-                                <span style="font-size: 0.8rem;">🔗</span>
+                            <a href="@source.Url" target="_blank" class="text-decoration-none"
+                               style="color:var(--gray-600); font-size:0.85rem;" title="@source.Url">
+                                @(source.Url.Length > 38 ? source.Url[..38] + "…" : source.Url)
                             </a>
                         </td>
                         <td>
-                            <span class="badge badge-primary-custom" style="font-size: 0.75rem;">
-                                @item.ComponentType
+                            <span class="badge badge-primary-custom" style="font-size:0.75rem;">
+                                @source.ComponentType
                             </span>
                         </td>
                         <td>
-                            @if (item.RequiresSecret)
+                            @if (source.RequiresSecret)
                             {
-                                <span class="badge badge-warning-custom" style="font-size: 0.75rem;">🔐 Sí</span>
+                                <span class="badge badge-warning-custom" style="font-size:0.75rem;">🔐 Sí</span>
                             }
                             else
                             {
-                                <span class="badge badge-success-custom" style="font-size: 0.75rem;">✅ No</span>
+                                <span class="badge badge-success-custom" style="font-size:0.75rem;">✅ No</span>
                             }
                         </td>
                         <td>
-                            <small style="color: var(--gray-600);">
-                                @(item.Description != null && item.Description.Length > 50 
-                                    ? item.Description.Substring(0, 50) + "..." 
-                                    : (item.Description ?? "-"))
-                            </small>
+                            <span class="badge @(source.SourceItems?.Any() == true ? "badge-success-custom" : "")"
+                                  style="font-size:0.75rem; @(source.SourceItems?.Any() != true ? "background:var(--gray-200); color:var(--gray-600);" : "")">
+                                @(source.SourceItems?.Count ?? 0)
+                            </span>
                         </td>
                         <td>
-                            @if (item.SourceItems != null && item.SourceItems.Any())
-                            {
-                                <span class="badge badge-success-custom" style="font-size: 0.75rem;">
-                                    @item.SourceItems.Count()
-                                </span>
-                            }
-                            else
-                            {
-                                <span class="badge" style="background-color: var(--gray-300); color: var(--gray-600); font-size: 0.75rem;">
-                                    0
-                                </span>
-                            }
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button class="btn btn-primary-custom btn-sm"
+                                        onclick="openPreview(@source.Id, '@source.Name.Replace("'", "\\'")')">
+                                    📰 Ver noticias
+                                </button>
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <a asp-action="Edit" asp-route-id="@source.Id"
+                                       class="btn btn-secondary-custom btn-sm">
+                                        ✏️ Editar
+                                    </a>
+                                    <form asp-action="Delete" asp-route-id="@source.Id" method="post" class="d-inline"
+                                          onsubmit="return confirm('¿Eliminar esta fuente?')">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm"
+                                                style="background:#EF4444;color:white;border:none;border-radius:var(--radius);padding:0.35rem 0.75rem;">
+                                            🗑 Eliminar
+                                        </button>
+                                    </form>
+                                }
+                            </div>
                         </td>
-
-                        <!-- comentario -->
-                        <td>
-                            <form asp-action="AddItem" method="post" class="d-inline">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="sourceId" value="@item.Id" />
-
-                            <button type="submit"
-                                    class="btn btn-sm btn-primary-custom"
-                                    onclick="return confirmarAccion(@(item.SourceItems != null && item.SourceItems.Any() ? "true" : "false"));">
-                                @(item.SourceItems != null && item.SourceItems.Any()
-                                                            ? "✔ Ya agregado"
-                                                            : "➕ Agregar Item")
-                        </button>
-
-                            </form>
-                        </td>
-                        <!-- comentario -->
-
-
                     </tr>
                 }
             </tbody>
         </table>
     </div>
-
-    <div class="mt-4 d-flex justify-content-between align-items-center">
-        <p class="text-muted mb-0">
-            Mostrando <strong style="color: var(--primary);">@Model.Count()</strong> fuente(s) registrada(s)
-        </p>
-        <a asp-action="Create" class="btn btn-secondary-custom">
-            ➕ Agregar Otra Fuente
-        </a>
-    </div>
 }
 
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--gray-50); border-bottom:1px solid var(--gray-200);">
+                <div>
+                    <h5 class="modal-title mb-0" id="previewModalTitle">Cargando…</h5>
+                    <small class="text-muted" id="previewModalCount"></small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
 
+            <div class="modal-body p-0">
+                <div id="previewSpinner" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-3 text-muted">Conectando a la fuente…</p>
+                </div>
+                <div id="previewError" class="alert alert-danger m-3" style="display:none;"></div>
+                <div id="previewList" style="display:none;"></div>
+            </div>
+
+            <div class="modal-footer" style="background:var(--gray-50);">
+                <small class="text-muted me-auto">
+                    Hacé clic en <strong>Guardar</strong> en cualquier noticia para agregarla a la BD
+                </small>
+                <button type="button" class="btn btn-secondary-custom" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
 <script>
-    function confirmarAccion(yaExiste) {
-        if (yaExiste) {
-            return confirm("Este item ya fue agregado. ¿Deseas intentar guardarlo nuevamente?");
+let _currentSourceId = null;
+
+async function openPreview(sourceId, sourceName) {
+    _currentSourceId = sourceId;
+
+    // Reset modal
+    document.getElementById('previewModalTitle').textContent = `📰 ${sourceName}`;
+    document.getElementById('previewModalCount').textContent  = '';
+    document.getElementById('previewSpinner').style.display  = 'block';
+    document.getElementById('previewError').style.display    = 'none';
+    document.getElementById('previewList').style.display     = 'none';
+    document.getElementById('previewList').innerHTML         = '';
+
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+
+    try {
+        const res  = await fetch(`/api/SourcesApi/${sourceId}/preview`, { credentials: 'include' });
+        const data = await res.json();
+
+        document.getElementById('previewSpinner').style.display = 'none';
+
+        if (!res.ok) {
+            document.getElementById('previewError').textContent  = data.message || 'Error al cargar';
+            document.getElementById('previewError').style.display = 'block';
+            return;
         }
-        return true;
+
+        document.getElementById('previewModalCount').textContent =
+            `${data.count} noticia(s) disponibles`;
+
+        const list = document.getElementById('previewList');
+        list.style.display = 'block';
+
+        if (!data.items?.length) {
+            list.innerHTML = '<p class="text-muted text-center py-4">No se encontraron noticias.</p>';
+            return;
+        }
+
+        list.innerHTML = data.items.map((item, i) => {
+            // CORRECCIÓN: Intenta obtener la imagen tanto en minúscula como en mayúscula
+            const imgUrl = item.imageUrl || item.ImageUrl;
+            
+            // Creamos el HTML de la imagen o el placeholder ANTES para limpiar el template literal
+            let imageHtml = '';
+            if (imgUrl) {
+                imageHtml = `
+                    <div class="preview-image-container flex-shrink-0">
+                        <img src="${imgUrl}" 
+                             class="preview-image" 
+                             alt="Imagen de noticia"
+                             onerror="this.onerror=null; this.parentElement.innerHTML='<div class=preview-image-placeholder>📷</div>';">
+                    </div>`;
+            } else {
+                imageHtml = `
+                    <div class="preview-image-container flex-shrink-0">
+                        <div class="preview-image-placeholder">📷</div>
+                    </div>`;
+            }
+
+            return `
+                <div class="preview-item" id="item-${i}">
+                    <div class="d-flex gap-3 flex-column flex-md-row">
+                        
+                        ${imageHtml}
+
+                        <div class="flex-grow-1">
+                            <div class="preview-item-header">
+                                <div class="d-flex align-items-start justify-content-between gap-3">
+                                    <h6 class="preview-title mb-1">${escHtml(item.title || item.Title || 'Sin título')}</h6>
+                                    <button class="btn btn-success-custom btn-sm flex-shrink-0"
+                                            onclick="saveItem(${i}, this)"
+                                            data-raw='${escAttr(item.rawJson || item.RawJson)}'>
+                                        💾 Guardar
+                                    </button>
+                                </div>
+                                <div class="d-flex gap-3 flex-wrap mb-2">
+                                    ${(item.author || item.Author) ? `<span class="meta-info">✍️ ${escHtml(item.author || item.Author)}</span>` : ''}
+                                    ${(item.publishedAt || item.PublishedAt) ? `<span class="meta-info">📅 ${new Date(item.publishedAt || item.PublishedAt).toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'})}</span>` : ''}
+                                    ${(item.articleUrl || item.ArticleUrl) ? `<a href="${escHtml(item.articleUrl || item.ArticleUrl)}" target="_blank" class="meta-info text-primary text-decoration-none">🔗 Ver original</a>` : ''}
+                                </div>
+                            </div>
+                            <p class="preview-summary">${escHtml(item.summary || item.Summary || (item.content || item.Content ? (item.content || item.Content).substring(0, 180) + '...' : ''))}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        document.getElementById('previewSpinner').style.display  = 'none';
+        document.getElementById('previewError').textContent      = `Error de conexión: ${err.message}`;
+        document.getElementById('previewError').style.display    = 'block';
     }
+}
+
+async function saveItem(index, btn) {
+    const rawJson = btn.getAttribute('data-raw');
+    btn.disabled = true;
+    btn.textContent = '⏳';
+
+    try {
+        const res  = await fetch(`/api/SourcesApi/${_currentSourceId}/save-item`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ rawJson })
+        });
+        const data = await res.json();
+
+        if (res.ok || res.status === 201) {
+            btn.textContent  = '✅ Guardado';
+            btn.className    = 'btn btn-secondary-custom btn-sm flex-shrink-0';
+            btn.disabled     = true;
+        } else if (res.status === 409) {
+            btn.textContent  = '⚠️ Ya existe';
+            btn.disabled     = true;
+        } else {
+            btn.textContent  = '❌ Error';
+            btn.disabled     = false;
+            alert(data.message || 'Error al guardar');
+        }
+    } catch (err) {
+        btn.textContent = '❌ Error';
+        btn.disabled    = false;
+    }
+}
+
+function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+    if (!s) return '';
+    return String(s).replace(/'/g,'&apos;').replace(/"/g,'&quot;');
+}
 </script>
+    <style>
+        .preview-item {
+            border-bottom: 1px solid var(--gray-200);
+            padding: 1.25rem 1.5rem;
+            transition: background 0.15s;
+        }
+
+            .preview-item:last-child {
+                border-bottom: none;
+            }
+
+            .preview-item:hover {
+                background: var(--gray-50);
+            }
+
+        .preview-item-header {
+            margin-bottom: 0.5rem;
+        }
+
+        .preview-title {
+            font-size: 0.97rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            line-height: 1.4;
+        }
+
+        .preview-summary {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .meta-info {
+            font-size: 0.78rem;
+            color: var(--gray-600);
+        }
+
+        .preview-image-container {
+            width: 100%;
+            max-width: 160px;
+        }
+
+        .preview-image {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .preview-image-placeholder {
+            width: 160px;
+            height: 100px;
+            background: var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 1.5rem;
+            color: var(--gray-400);
+        }
+
+        @@media (max-width: 768px) {
+            .preview-image-container {
+                max-width: 100%;
+            }
+
+            .preview-image, .preview-image-placeholder {
+                width: 100%;
+                height: 160px;
+            }
+        }
+        
+        .preview-item {
+            border-bottom: 1px solid var(--gray-200);
+            padding: 1.25rem 1.5rem;
+            transition: background 0.15s;
+        }
+
+            .preview-item:last-child {
+                border-bottom: none;
+            }
+
+            .preview-item:hover {
+                background: var(--gray-50);
+            }
+
+        .preview-item-header {
+            margin-bottom: 0.5rem;
+        }
+
+        .preview-title {
+            font-size: 0.97rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            line-height: 1.4;
+        }
+
+        .preview-summary {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .meta-info {
+            font-size: 0.78rem;
+            color: var(--gray-600);
+        }
+
+        
+        .preview-image-container {
+            width: 100%;
+            
+            flex: 0 0 160px;
+        }
+
+        .preview-image {
+            width: 160px;
+            height: 100px;
+            object-fit: cover; 
+            border-radius: 6px;
+            border: 1px solid var(--gray-200);
+            display: block;
+        }
+
+        .preview-image-placeholder {
+            width: 160px;
+            height: 100px;
+            background-color: var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 1.5rem;
+            color: var(--gray-400);
+            border: 1px solid var(--gray-200);
+        }
+
+        
+        @@media (max-width: 767.98px) {
+            .preview-image-container {
+                flex: 0 0 auto;
+                width: 100%;
+            }
+
+            .preview-image, .preview-image-placeholder {
+                width: 100%;
+                height: 160px; 
+            }
+        }
+    </style>
+}

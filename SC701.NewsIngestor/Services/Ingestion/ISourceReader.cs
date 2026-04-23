@@ -1,5 +1,5 @@
-﻿using SC701.Models.DTOs;
 using SC701.Models;
+using SC701.Models.DTOs;
 
 namespace SC701.NewsIngestor.Services.Ingestion;
 

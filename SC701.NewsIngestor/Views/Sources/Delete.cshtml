@@ -1,0 +1,72 @@
+﻿@model SC701.Models.Source
+@{
+    ViewData["Title"] = "Eliminar Fuente";
+}
+
+<div class="page-header">
+    <h1 class="page-title">🗑️ Eliminar Fuente</h1>
+    <a asp-action="Index" class="btn btn-secondary-custom">← Volver</a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card-custom" style="border: 2px solid #EF4444;">
+            <div class="card-header" style="background:#FEE2E2; color:#991B1B;">
+                ⚠️ Confirmar eliminación
+            </div>
+            <div class="card-body">
+
+                <p class="mb-4" style="color:var(--gray-700);">
+                    ¿Estás seguro que querés eliminar esta fuente? Esta acción no se puede deshacer.
+                </p>
+
+                <div class="card-custom mb-4" style="background:var(--gray-50);">
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Nombre</dt>
+                            <dd class="col-sm-8"><strong>@Model.Name</strong></dd>
+
+                            <dt class="col-sm-4">URL</dt>
+                            <dd class="col-sm-8" style="font-size:0.85rem; word-break:break-all;">@Model.Url</dd>
+
+                            <dt class="col-sm-4">Tipo</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge badge-primary-custom">@Model.ComponentType</span>
+                            </dd>
+
+                            @if (Model.Description != null)
+                            {
+                                <dt class="col-sm-4">Descripción</dt>
+                                <dd class="col-sm-8">@Model.Description</dd>
+                            }
+
+                            <dt class="col-sm-4">Secret</dt>
+                            <dd class="col-sm-8">
+                                @if (Model.RequiresSecret)
+                                {
+                                    <span class="badge badge-warning-custom">🔐 Sí</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-success-custom">✅ No</span>
+                                }
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="btn btn-sm"
+                                style="background:#EF4444; color:white; border:none; border-radius:var(--radius); padding:0.5rem 1.5rem;">
+                            🗑️ Sí, eliminar
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary-custom">Cancelar</a>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>

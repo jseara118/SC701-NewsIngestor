@@ -1,72 +1,74 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using SC701.Architecture;
-using SC701.Architecture.Services;
 using SC701.Data;
 using SC701.Models;
 using SC701.NewsIngestor.Services.Ingestion;
 
+// ──────────────────────────────────────────────────────
+// Aliases para evitar ambigüedad con SC701.Architecture
+// ──────────────────────────────────────────────────────
+using IngestReader = SC701.NewsIngestor.Services.Ingestion.ISourceReader;
+using IngestService = SC701.NewsIngestor.Services.Ingestion.ISourceIngestionService;
+using ArchReader = SC701.Architecture.ISourceReader;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// MVC
 builder.Services.AddControllersWithViews();
 
-// EF Core + SQL Server (LocalDB)
+// EF Core + SQL Server
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ============================================
-// HU-09: IDENTITY CONFIGURATION (NUEVO)
+// IDENTITY (HU-09)
 // ============================================
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
-    // Password settings
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
     options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredLength = 6;
-
-    // Lockout settings
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
     options.Lockout.MaxFailedAccessAttempts = 5;
-
-    // User settings
     options.User.RequireUniqueEmail = true;
 })
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// Cookie settings (NUEVO)
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
     options.AccessDeniedPath = "/Account/AccessDenied";
-
-    // ✅ 20 min de inactividad
     options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
-    options.SlidingExpiration = true; // renueva el cookie mientras el user siga activo
-
-    // hardening recomendado
+    options.SlidingExpiration = true;
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
 // ============================================
-// HU-18: SERVICIOS DE NORMALIZACIÓN Y LECTURA DE FUENTES
+// INGESTA DE FUENTES (HU-17, HU-18)
 // ============================================
-builder.Services.AddHttpClient(); // Para los SourceReaders (IHttpClientFactory)
-builder.Services.AddScoped<INormalizationService, NormalizationService>();
-builder.Services.AddScoped<ISourceReader, JsonSourceReader>();
-builder.Services.AddScoped<ISourceReader, XmlSourceReader>();
-builder.Services.AddScoped<ISourceReader, HtmlSourceReader>();
-builder.Services.AddScoped<SourceReaderService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IngestReader, JsonSourceReader>();
+builder.Services.AddScoped<IngestReader, XmlSourceReader>();
+builder.Services.AddScoped<IngestReader, HtmlSourceReader>();
+builder.Services.AddScoped<IngestReader, NewsApiSourceReader>();
+builder.Services.AddScoped<IngestService, SourceIngestionService>();
 
 // ============================================
-// SWAGGER CONFIGURATION (TU CONFIGURACIÓN EXISTENTE)
+// SC701.Architecture (HomeController + ItemsController)
+// ============================================
+builder.Services.AddScoped<SC701.Architecture.INormalizationService, SC701.Architecture.Services.NormalizationService>(); // 👈 esta
+builder.Services.AddScoped<ArchReader, SC701.Architecture.Services.JsonSourceReader>();
+builder.Services.AddScoped<ArchReader, SC701.Architecture.Services.XmlSourceReader>();
+builder.Services.AddScoped<ArchReader, SC701.Architecture.Services.HtmlSourceReader>();
+builder.Services.AddScoped<SC701.Architecture.Services.SourceReaderService>();
+// ============================================
+// SWAGGER
 // ============================================
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -84,36 +86,29 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-builder.Services.AddHttpClient();
-
-// Ingesta (HU-17)
-builder.Services.AddScoped<ISourceReader, JsonSourceReader>();
-builder.Services.AddScoped<ISourceReader, HtmlSourceReader>();
-builder.Services.AddScoped<ISourceIngestionService, SourceIngestionService>();
-
-
 var app = builder.Build();
 
 // ============================================
-// SEED DATA (NUEVO - HU-10: Crear roles y admin inicial)
+// SEED DATA (HU-10)
 // ============================================
 using (var scope = app.Services.CreateScope())
 {
-    var services = scope.ServiceProvider;
     try
     {
-        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-        await SeedData.Initialize(services, userManager, roleManager);
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        await SeedData.Initialize(scope.ServiceProvider, userManager, roleManager);
     }
     catch (Exception ex)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "Error al inicializar datos de prueba");
     }
 }
 
-// Configure the HTTP request pipeline.
+// ============================================
+// PIPELINE
+// ============================================
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -121,7 +116,6 @@ if (!app.Environment.IsDevelopment())
 }
 else
 {
-    // HABILITAR SWAGGER SOLO EN DESARROLLO
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
@@ -132,26 +126,23 @@ else
 
 app.UseHttpsRedirection();
 app.UseRouting();
-
-// ============================================
-// HU-09: Authentication & Authorization (NUEVO)
-// ============================================
 app.UseAuthentication();
 
+// Middleware de sesión única
 app.Use(async (context, next) =>
 {
-    if (context.User?.Identity?.IsAuthenticated == true)
+    var isApiRequest = context.Request.Path.StartsWithSegments("/api");
+
+    if (!isApiRequest && context.User?.Identity?.IsAuthenticated == true)
     {
         var userManager = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
         var signInManager = context.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
-
         var userId = userManager.GetUserId(context.User);
         var sidClaim = context.User.FindFirst("sid")?.Value;
 
         if (!string.IsNullOrWhiteSpace(userId))
         {
             var user = await userManager.FindByIdAsync(userId);
-
             if (user == null ||
                 string.IsNullOrWhiteSpace(user.CurrentSessionId) ||
                 string.IsNullOrWhiteSpace(sidClaim) ||
@@ -162,32 +153,24 @@ app.Use(async (context, next) =>
                 return;
             }
 
-            // actualizar actividad (solo cada minuto para no saturar DB)
             var now = DateTime.UtcNow;
-            if (user.LastActivityAt == null ||
-                (now - user.LastActivityAt.Value) > TimeSpan.FromMinutes(1))
+            if (user.LastActivityAt == null || (now - user.LastActivityAt.Value) > TimeSpan.FromMinutes(1))
             {
                 user.LastActivityAt = now;
                 await userManager.UpdateAsync(user);
             }
         }
     }
-
     await next();
 });
 
-
 app.UseAuthorization();
-
 app.MapStaticAssets();
 
-// Mapeo de rutas para MVC
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
-// Mapeo de rutas para API Controllers
 app.MapControllers();
-
 app.Run();

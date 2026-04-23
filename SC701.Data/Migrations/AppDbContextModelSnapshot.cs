@@ -314,6 +314,9 @@ namespace SC701.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AdditionalUrls")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ComponentType")
                         .IsRequired()
                         .HasMaxLength(100)

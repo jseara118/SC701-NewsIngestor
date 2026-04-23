@@ -3,15 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SC701.Data;
 using SC701.Models;
-using SC701.Models.DTOs;
 using SC701.NewsIngestor.Services.Ingestion;
-
-//comment: This controller manages the CRUD operations for Source entities in the application.
-// HU-11: Restricciones por rol - Solo Admin puede crear/editar/eliminar fuentes
 
 namespace SC701.NewsIngestor.Controllers
 {
-    [Authorize] // HU-09: Requiere autenticación para todo el controller
+    [Authorize]
     public class SourcesController : Controller
     {
         private readonly AppDbContext _context;
@@ -23,7 +19,7 @@ namespace SC701.NewsIngestor.Controllers
             _ingestion = ingestion;
         }
 
-        // GET: Sources (Todos pueden ver)
+        // GET: Sources
         public async Task<IActionResult> Index()
         {
             var sources = await _context.Sources
@@ -33,123 +29,92 @@ namespace SC701.NewsIngestor.Controllers
             return View(sources);
         }
 
-        // GET: Sources/Create (Solo Admin - HU-11)
+        // GET: Sources/Create
         [Authorize(Roles = "Admin")]
-        public IActionResult Create()
-        {
-            return View();
-        }
+        public IActionResult Create() => View();
 
-        // POST: Sources/Create (Solo Admin - HU-11)
-        /*   [HttpPost]
-           [ValidateAntiForgeryToken]
-           [Authorize(Roles = "Admin")]
-           public async Task<IActionResult> Create([Bind("Url,Name,Description,ComponentType,RequiresSecret")] Source source)
-           {
-               if (ModelState.IsValid)
-               {
-                   _context.Add(source);
-                   await _context.SaveChangesAsync();
-                   TempData["SuccessMessage"] = $"Fuente '{source.Name}' creada exitosamente";
-                   return RedirectToAction(nameof(Index));
-               }
-               return View(source);
-           }
-        */
+        // POST: Sources/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([Bind("Url,Name,Description,ComponentType,RequiresSecret")] Source source)
+        public async Task<IActionResult> Create(
+            [Bind("Url,Name,Description,ComponentType,RequiresSecret,AdditionalUrls,DefaultCategory")] Source source)
         {
-            // Validación mínima manual adicional (opcional pero más explícita para la HU)
-            if (string.IsNullOrWhiteSpace(source.Url) ||
-                string.IsNullOrWhiteSpace(source.ComponentType))
-            {
-                TempData["ErrorMessage"] = "Debe ingresar una URL válida y un tipo de componente.";
-                return RedirectToAction(nameof(Index));
-            }
+            ModelState.Remove("SourceItems");
 
             if (!ModelState.IsValid)
-            {
-                TempData["ErrorMessage"] = "Los datos ingresados no son válidos.";
-                return RedirectToAction(nameof(Index));
-            }
+                return View(source);
 
             _context.Add(source);
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = $"Fuente '{source.Name}' creada exitosamente";
-
+            TempData["SuccessMessage"] = $"Fuente '{source.Name}' creada exitosamente.";
             return RedirectToAction(nameof(Index));
         }
 
-        // POST: Sources/AddItem (Solo Admin puede agregar items - HU-11)
+        // GET: Sources/Edit/5
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Edit(int id)
+        {
+            var source = await _context.Sources.FindAsync(id);
+            if (source == null) return NotFound();
+            return View(source);
+        }
+
+        // POST: Sources/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> AddItem(int sourceId)
+        public async Task<IActionResult> Edit(int id,
+            [Bind("Id,Url,Name,Description,ComponentType,RequiresSecret,AdditionalUrls,DefaultCategory")] Source source)
         {
-            // 1. Verificar que la fuente exista
-            var source = await _context.Sources
-                .FirstOrDefaultAsync(s => s.Id == sourceId);
+            if (id != source.Id) return BadRequest();
 
-            if (source == null)
-            {
-                TempData["ErrorMessage"] = "La fuente seleccionada no existe.";
-                return RedirectToAction(nameof(Index));
-            }
+            ModelState.Remove("SourceItems");
 
-            // 2. Definir el JSON (por ahora usamos la URL como contenido base)
-            StandardNewsItemDto standard;
-            try
-            {
-                standard = await _ingestion.IngestAsync(source);
-            }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = $"Error leyendo la fuente '{source.Name}': {ex.Message}";
-                return RedirectToAction(nameof(Index));
-            }
+            if (!ModelState.IsValid)
+                return View(source);
 
-            var jsonData = System.Text.Json.JsonSerializer.Serialize(
-                standard,
-                new System.Text.Json.JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
-                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-                    WriteIndented = false
-                }
-            );
+            var existing = await _context.Sources.FindAsync(id);
+            if (existing == null) return NotFound();
 
+            existing.Url = source.Url;
+            existing.Name = source.Name;
+            existing.Description = source.Description;
+            existing.ComponentType = source.ComponentType;
+            existing.RequiresSecret = source.RequiresSecret;
+            existing.AdditionalUrls = source.AdditionalUrls;
+            existing.DefaultCategory = source.DefaultCategory;
 
-            // 3. Verificar si ya existe un item con la misma información
-            bool existeItem = await _context.SourceItems.AnyAsync(i =>
-                i.SourceId == sourceId &&
-                i.Json == jsonData
-            );
-
-            if (existeItem)
-            {
-                TempData["ErrorMessage"] =
-                    $"Ya existe un item registrado para la fuente '{source.Name}'. No se permiten duplicados.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            // 4. Crear el SourceItem
-            var newItem = new SourceItem
-            {
-                SourceId = source.Id,
-                Json = jsonData,
-                CreatedAt = DateTime.UtcNow
-            };
-
-
-            _context.SourceItems.Add(newItem);
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] =
-                $"El item de la fuente '{source.Name}' fue agregado correctamente.";
+            TempData["SuccessMessage"] = $"Fuente '{source.Name}' actualizada.";
+            return RedirectToAction(nameof(Index));
+        }
 
+        // POST: Sources/Delete/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var source = await _context.Sources
+                .Include(s => s.SourceItems)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (source == null) return NotFound();
+
+            if (source.SourceItems?.Any() == true)
+            {
+                TempData["ErrorMessage"] =
+                    $"No se puede eliminar '{source.Name}' porque tiene {source.SourceItems.Count} item(s) guardado(s).";
+                return RedirectToAction(nameof(Index));
+            }
+
+            _context.Sources.Remove(source);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Fuente '{source.Name}' eliminada.";
             return RedirectToAction(nameof(Index));
         }
     }

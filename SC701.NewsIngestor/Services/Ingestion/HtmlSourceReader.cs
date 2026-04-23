@@ -2,7 +2,6 @@
 using SC701.Models;
 using SC701.Models.DTOs;
 using System.Text.RegularExpressions;
-using System.Xml;
 
 namespace SC701.NewsIngestor.Services.Ingestion;
 
@@ -14,21 +13,37 @@ public class HtmlSourceReader : ISourceReader
     {
         _http = factory.CreateClient();
         _http.Timeout = TimeSpan.FromSeconds(30);
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (NewsIngestor/1.0)");
     }
 
     public bool CanHandle(string componentType)
-    => componentType.Equals("html", StringComparison.OrdinalIgnoreCase)
-    || componentType.Equals("WebScraper", StringComparison.OrdinalIgnoreCase);
-
+        => componentType.Equals("html", StringComparison.OrdinalIgnoreCase)
+        || componentType.Equals("api", StringComparison.OrdinalIgnoreCase)
+        || componentType.Equals("WebScraper", StringComparison.OrdinalIgnoreCase);
 
     public async Task<StandardNewsItemDto> ReadAsync(Source source, CancellationToken ct = default)
-    {
-        var html = await _http.GetStringAsync(source.Url, ct);
+        => await ScrapeUrl(source, source.Url, ct);
 
+    public async Task<List<StandardNewsItemDto>> ReadManyAsync(Source source, CancellationToken ct = default)
+    {
+        var urls = source.GetAllUrls();
+        var results = new List<StandardNewsItemDto>();
+
+        foreach (var url in urls)
+        {
+            try { results.Add(await ScrapeUrl(source, url, ct)); }
+            catch { /* si una URL falla, continuamos con las demás */ }
+        }
+
+        return results;
+    }
+
+    private async Task<StandardNewsItemDto> ScrapeUrl(Source source, string url, CancellationToken ct)
+    {
+        var html = await _http.GetStringAsync(url, ct);
         var doc = new HtmlDocument();
         doc.LoadHtml(html);
 
-        // remover ruido
         foreach (var node in doc.DocumentNode.SelectNodes("//script|//style") ?? Enumerable.Empty<HtmlNode>())
             node.Remove();
 
@@ -57,6 +72,12 @@ public class HtmlSourceReader : ISourceReader
             Meta(doc, "name", "author")
             ?? Meta(doc, "property", "article:author");
 
+        // Categoría: primero la del meta tag, luego el DefaultCategory de la fuente
+        string? category =
+            Meta(doc, "property", "article:section")
+            ?? Meta(doc, "name", "category")
+            ?? source.DefaultCategory;
+
         return new StandardNewsItemDto
         {
             SchemaVersion = "edu.univ.ingest.v1",
@@ -75,21 +96,17 @@ public class HtmlSourceReader : ISourceReader
                 Content = content,
                 Summary = content.Length > 220 ? content[..220] + "..." : content,
                 PublishedAt = publishedAt,
-                Url = source.Url,
+                Url = url,
                 Author = author,
-                Language = "es"
+                Language = "es",
+                Category = string.IsNullOrWhiteSpace(category) ? null : new CategoryDto { Primary = category }
             },
-            Raw = new RawDataDto
-            {
-                Format = "html",
-                Data = new { html }
-            }
+            Raw = new RawDataDto { Format = "html", Data = new { sourceUrl = url } }
         };
     }
 
     private static string? Meta(HtmlDocument doc, string attrName, string attrValue)
     {
-        // <meta property="og:title" content="...">
         var node = doc.DocumentNode.SelectSingleNode($"//meta[@{attrName}='{attrValue}']");
         return node?.GetAttributeValue("content", null);
     }
@@ -101,7 +118,6 @@ public class HtmlSourceReader : ISourceReader
             ?? doc.DocumentNode.SelectSingleNode("//main")
             ?? doc.DocumentNode.SelectSingleNode("//body")
             ?? doc.DocumentNode;
-
         return HtmlEntity.DeEntitize(main.InnerText ?? "");
     }
 

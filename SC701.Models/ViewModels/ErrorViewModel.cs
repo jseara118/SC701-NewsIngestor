@@ -1,4 +1,4 @@
-namespace SC701.Models
+namespace SC701.Models.ViewModels
 {
     public class ErrorViewModel
     {

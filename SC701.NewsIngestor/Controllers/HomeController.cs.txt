@@ -4,8 +4,6 @@ using SC701.Architecture.Services;
 using SC701.Data;
 using SC701.Models;
 
-// HU-21: Mostrar items desde fuentes si BD está vacía
-
 namespace SC701.NewsIngestor.Controllers
 {
     public class HomeController : Controller
@@ -21,23 +19,25 @@ namespace SC701.NewsIngestor.Controllers
 
         public async Task<IActionResult> Index()
         {
-            // 1. Noticias GUARDADAS en Base de Datos (últimas 6)
+            // 1. Noticias GUARDADAS en Base de Datos (Prioridad Superior)
             var savedItems = await _context.SourceItems
                 .Include(i => i.Source)
                 .OrderByDescending(i => i.CreatedAt)
                 .Take(6)
                 .ToListAsync();
 
-            // 2. Fuentes para la sección de noticias en vivo
+            // 2. Obtener las fuentes para mostrar los cuadros de configuración al final
             var sources = await _context.Sources
                 .OrderBy(s => s.Name)
                 .ToListAsync();
             ViewBag.Sources = sources;
 
-            // 3. Noticias en vivo desde fuentes externas (preview)
+            // 3. Noticias EN VIVO de las fuentes (HU-21 / Preview)
+            // Leemos de las fuentes externas para mostrar contenido fresco que aún no se ha guardado
             try
             {
                 var liveItems = await _sourceReaderService.ReadFromAllSourcesAsync();
+                // Filtramos para no repetir en el preview lo que ya está guardado (opcional)
                 ViewBag.LiveItems = liveItems.Take(6).ToList();
             }
             catch
