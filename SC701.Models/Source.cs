@@ -30,7 +30,31 @@ namespace SC701.Models
         [Display(Name = "¿Requiere Secret?")]
         public bool RequiresSecret { get; set; }
 
+        /// <summary>
+        /// URLs adicionales del mismo sitio, separadas por salto de línea.
+        /// Permite ingestar múltiples artículos de la misma fuente.
+        /// </summary>
+        [Display(Name = "URLs Adicionales")]
+        public string? AdditionalUrls { get; set; }
+
         // Relación con SourceItems
         public virtual ICollection<SourceItem>? SourceItems { get; set; }
+
+        // Helper: devuelve todas las URLs (principal + adicionales) como lista
+        public List<string> GetAllUrls()
+        {
+            var urls = new List<string> { Url };
+
+            if (!string.IsNullOrWhiteSpace(AdditionalUrls))
+            {
+                var extras = AdditionalUrls
+                    .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(u => u.Trim())
+                    .Where(u => !string.IsNullOrWhiteSpace(u));
+                urls.AddRange(extras);
+            }
+
+            return urls;
+        }
     }
 }

@@ -28,9 +28,9 @@ public class SourceIngestionService : ISourceIngestionService
         var reader = _readers.FirstOrDefault(r => r.CanHandle(source.ComponentType))
             ?? throw new InvalidOperationException(
                 $"No hay lector para ComponentType='{source.ComponentType}'. " +
-                "Válidos: json, newsapi, rss, xml, atom, html.");
+                "Válidos: json, newsapi, rss, xml, atom, html, api.");
 
-        // NewsAPI siempre busca el secret, independiente del flag RequiresSecret
+        // NewsAPI: siempre usa ReadManyAsync con secret
         if (reader is NewsApiSourceReader newsApi)
         {
             var secretValue = await _context.Secrets
@@ -42,9 +42,15 @@ public class SourceIngestionService : ISourceIngestionService
             return await newsApi.ReadManyAsync(source, secretValue, ct);
         }
 
+        // XML/RSS: siempre usa ReadManyAsync
         if (reader is XmlSourceReader xml)
             return await xml.ReadManyAsync(source, ct);
 
+        // HTML/WebScraper/api: usa ReadManyAsync para soportar AdditionalUrls
+        if (reader is HtmlSourceReader html)
+            return await html.ReadManyAsync(source, ct);
+
+        // JSON y otros: single item
         var single = await reader.ReadAsync(source, ct);
         return [single];
     }

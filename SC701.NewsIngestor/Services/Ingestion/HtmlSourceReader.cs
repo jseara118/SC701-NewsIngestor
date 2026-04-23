@@ -2,7 +2,6 @@
 using SC701.Models;
 using SC701.Models.DTOs;
 using System.Text.RegularExpressions;
-using System.Xml;
 
 namespace SC701.NewsIngestor.Services.Ingestion;
 
@@ -14,16 +13,45 @@ public class HtmlSourceReader : ISourceReader
     {
         _http = factory.CreateClient();
         _http.Timeout = TimeSpan.FromSeconds(30);
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (NewsIngestor/1.0)");
     }
 
     public bool CanHandle(string componentType)
-    => componentType.Equals("html", StringComparison.OrdinalIgnoreCase)
-    || componentType.Equals("WebScraper", StringComparison.OrdinalIgnoreCase);
+        => componentType.Equals("html", StringComparison.OrdinalIgnoreCase)
+        || componentType.Equals("api", StringComparison.OrdinalIgnoreCase)
+        || componentType.Equals("WebScraper", StringComparison.OrdinalIgnoreCase);
 
-
+    // ISourceReader: devuelve solo el primero (URL principal)
     public async Task<StandardNewsItemDto> ReadAsync(Source source, CancellationToken ct = default)
     {
-        var html = await _http.GetStringAsync(source.Url, ct);
+        return await ScrapeUrl(source, source.Url, ct);
+    }
+
+    // Devuelve un item por cada URL (principal + adicionales)
+    public async Task<List<StandardNewsItemDto>> ReadManyAsync(Source source, CancellationToken ct = default)
+    {
+        var urls = source.GetAllUrls();
+        var results = new List<StandardNewsItemDto>();
+
+        foreach (var url in urls)
+        {
+            try
+            {
+                var item = await ScrapeUrl(source, url, ct);
+                results.Add(item);
+            }
+            catch
+            {
+                // Si una URL falla, continuamos con las demás
+            }
+        }
+
+        return results;
+    }
+
+    private async Task<StandardNewsItemDto> ScrapeUrl(Source source, string url, CancellationToken ct)
+    {
+        var html = await _http.GetStringAsync(url, ct);
 
         var doc = new HtmlDocument();
         doc.LoadHtml(html);
@@ -75,21 +103,20 @@ public class HtmlSourceReader : ISourceReader
                 Content = content,
                 Summary = content.Length > 220 ? content[..220] + "..." : content,
                 PublishedAt = publishedAt,
-                Url = source.Url,
+                Url = url,
                 Author = author,
                 Language = "es"
             },
             Raw = new RawDataDto
             {
                 Format = "html",
-                Data = new { html }
+                Data = new { sourceUrl = url }
             }
         };
     }
 
     private static string? Meta(HtmlDocument doc, string attrName, string attrValue)
     {
-        // <meta property="og:title" content="...">
         var node = doc.DocumentNode.SelectSingleNode($"//meta[@{attrName}='{attrValue}']");
         return node?.GetAttributeValue("content", null);
     }

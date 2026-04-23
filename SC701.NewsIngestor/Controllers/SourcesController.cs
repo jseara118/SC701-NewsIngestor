@@ -38,7 +38,7 @@ namespace SC701.NewsIngestor.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create(
-            [Bind("Url,Name,Description,ComponentType,RequiresSecret")] Source source)
+            [Bind("Url,Name,Description,ComponentType,RequiresSecret,AdditionalUrls")] Source source)
         {
             ModelState.Remove("SourceItems");
 
@@ -66,7 +66,7 @@ namespace SC701.NewsIngestor.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Edit(int id,
-            [Bind("Id,Url,Name,Description,ComponentType,RequiresSecret")] Source source)
+            [Bind("Id,Url,Name,Description,ComponentType,RequiresSecret,AdditionalUrls")] Source source)
         {
             if (id != source.Id) return BadRequest();
 
@@ -83,6 +83,7 @@ namespace SC701.NewsIngestor.Controllers
             existing.Description = source.Description;
             existing.ComponentType = source.ComponentType;
             existing.RequiresSecret = source.RequiresSecret;
+            existing.AdditionalUrls = source.AdditionalUrls;
 
             await _context.SaveChangesAsync();
 
